@@ -1,6 +1,6 @@
 const verifyToken = (req, res) => {
   try {
-    const accessToken = process.env.META_ACCESS_TOKEN;
+    const accessToken = process.env.META_VERIFY_TOKEN;
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
 

@@ -5,8 +5,9 @@ const apiRoutes = require("./routes/route");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use("/webhook", apiRoutes);
 app.use(express.json());
+
+app.use("/webhook", apiRoutes);
 
 app.use((req, _res, next) => {
   if (req.path.startsWith("/webhook")) {

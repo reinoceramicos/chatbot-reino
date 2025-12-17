@@ -1,11 +1,14 @@
 const verifyToken = (req, res) => {
+  // defensa extra por si Express enruta HEAD a GET igual
+  if (req.method === "HEAD") return res.sendStatus(200);
+
   const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 
-  // const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (challenge !== null && token !== null && token === VERIFY_TOKEN) {
+  // más tolerante: si hay challenge y token ok, devolvés challenge
+  if (token && challenge && token === VERIFY_TOKEN) {
     return res.status(200).send(challenge);
   }
 
@@ -16,7 +19,4 @@ const receiveMessage = (req, res) => {
   res.send("Hola receive message");
 };
 
-module.exports = {
-  verifyToken,
-  receiveMessage,
-};
+module.exports = { verifyToken, receiveMessage };

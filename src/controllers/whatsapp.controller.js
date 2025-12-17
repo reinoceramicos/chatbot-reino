@@ -1,28 +1,21 @@
-const { Console } = require("console");
 const fs = require("fs");
 
-const myConsole = new Console({
-  stdout: fs.createWriteStream("logs.txt"),
-  stderr: fs.createWriteStream("logs.txt"),
+const fileStream = fs.createWriteStream("logs.txt", {
+  flags: "a",
+  encoding: "utf8",
 });
 
-function extractIncomingMessages(value) {
-  if (!value?.messages) return [];
-
-  return value.messages.map((msg) => ({
-    from: msg.from,
-    type: msg.type,
-    text: msg.text?.body ?? null,
-    button: msg.button ?? null,
-    interactive: msg.interactive ?? null,
-    timestamp: msg.timestamp,
-  }));
-}
+const log = (label, payload) => {
+  const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const body =
+    typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  const line = `[${ts}] ${label}: ${body}\n`;
+  process.stdout.write(line);
+  fileStream.write(line);
+};
 
 const verifyToken = (req, res) => {
-  if (req.method !== "GET") {
-    return res.sendStatus(405);
-  }
+  if (req.method !== "GET") return res.sendStatus(405);
 
   const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
   const {
@@ -32,35 +25,43 @@ const verifyToken = (req, res) => {
   } = req.query;
 
   if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
-    myConsole.log("WEBHOOK VERIFIED");
+    log("WEBHOOK VERIFIED", { mode, token });
     return res.status(200).send(challenge);
   }
 
+  log("WEBHOOK VERIFY FAIL", { mode, token, expected: VERIFY_TOKEN });
   return res.sendStatus(403);
 };
 
 const receiveMessage = (req, res) => {
   try {
+    log("RAW BODY", req.body);
+
     const entry = req.body?.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
+    const messages = value?.messages;
 
-    const messages = extractIncomingMessages(value);
-
-    if (!messages || messages.length === 0) {
-      myConsole.log("No incoming messages");
+    if (!messages) {
+      log("NO_MESSAGES", req.body);
       return res.status(200).send("EVENT_RECEIVED");
     }
 
-    messages.forEach((m) => {
-      myConsole.log(JSON.stringify(m, null, 2));
+    messages.forEach((msg) => {
+      log("MESSAGE", msg);
+      if (msg.type === "text") {
+        log("TEXT_BODY", msg.text?.body || "");
+      }
     });
 
     return res.status(200).send("EVENT_RECEIVED");
-  } catch (error) {
-    myConsole.error("Webhook parse error", error);
+  } catch (err) {
+    log("WEBHOOK_ERROR", { message: err.message, stack: err.stack });
     return res.status(200).send("EVENT_RECEIVED");
   }
 };
 
-module.exports = { verifyToken, receiveMessage };
+module.exports = {
+  verifyToken,
+  receiveMessage,
+};

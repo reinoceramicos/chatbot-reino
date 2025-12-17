@@ -1,0 +1,52 @@
+name: Deploy dev al VPS
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    name: Deploy Chatbot API a VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: |
+          ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << EOF
+            set -e
+            cd /home/webapps/dev/chatbot-reino
+            echo "Trayendo los últimos cambios..."
+            git pull origin dev
+            echo "Instalando dependencias..."
+            npm install
+            echo "Iniciando aplicación..."
+            npm run start
+            echo "Reiniciando servicio PM2..."
+            pm2 restart chatbot
+
+          EOF
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deployment exitoso"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Deployment fallido por culpa de lucas"

@@ -1,31 +1,66 @@
+const { Console } = require("console");
+const fs = require("fs");
+
+const myConsole = new Console({
+  stdout: fs.createWriteStream("logs.txt"),
+  stderr: fs.createWriteStream("logs.txt"),
+});
+
+function extractIncomingMessages(value) {
+  if (!value?.messages) return [];
+
+  return value.messages.map((msg) => ({
+    from: msg.from,
+    type: msg.type,
+    text: msg.text?.body ?? null,
+    button: msg.button ?? null,
+    interactive: msg.interactive ?? null,
+    timestamp: msg.timestamp,
+  }));
+}
+
 const verifyToken = (req, res) => {
-  if (req.method === "HEAD") return res.sendStatus(200);
+  if (req.method !== "GET") {
+    return res.sendStatus(405);
+  }
 
   const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
+  const {
+    "hub.mode": mode,
+    "hub.verify_token": token,
+    "hub.challenge": challenge,
+  } = req.query;
 
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token && challenge && token === VERIFY_TOKEN) {
-    console.log("WEBHOOK VERIFIED");
+  if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
+    myConsole.log("WEBHOOK VERIFIED");
     return res.status(200).send(challenge);
   }
 
-  console.warn("Webhook verification failed", {
-    mode,
-    tokenReceived: token,
-    expectedToken: VERIFY_TOKEN,
-  });
   return res.sendStatus(403);
 };
 
 const receiveMessage = (req, res) => {
-  const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-  console.log(
-    `\nWebhook received ${timestamp}\n${JSON.stringify(req.body, null, 2)}\n`
-  );
-  return res.sendStatus(200);
+  try {
+    const entry = req.body?.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+
+    const messages = extractIncomingMessages(value);
+
+    if (!messages || messages.length === 0) {
+      myConsole.log("No incoming messages");
+      return res.status(200).send("EVENT_RECEIVED");
+    }
+
+    messages.forEach((m) => {
+      myConsole.log(JSON.stringify(m, null, 2));
+    });
+
+    return res.status(200).send("EVENT_RECEIVED");
+  } catch (error) {
+    myConsole.error("Webhook parse error", error);
+    return res.status(200).send("EVENT_RECEIVED");
+  }
 };
 
 module.exports = { verifyToken, receiveMessage };

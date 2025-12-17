@@ -1,17 +1,15 @@
 const verifyToken = (req, res) => {
-  try {
-    const accessToken = process.env.META_VERIFY_TOKEN;
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
+  const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 
-    if (challenge && token && token === accessToken) {
-      res.status(200).send(challenge);
-    } else {
-      res.status(400).send("Token de verificación no válido");
-    }
-  } catch (error) {
-    res.status(400).send("Error en la verificación del token");
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
   }
+
+  return res.sendStatus(403);
 };
 
 const receiveMessage = (req, res) => {

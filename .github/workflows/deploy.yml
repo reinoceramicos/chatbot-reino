@@ -36,8 +36,6 @@ jobs:
             git pull origin dev
             echo "Instalando dependencias..."
             npm install
-            echo "Iniciando aplicación..."
-            npm run start
             echo "Reiniciando servicio PM2..."
             pm2 restart chatbot
 

@@ -25,20 +25,29 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Start SSH agent and add key
+        run: |
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_ed25519
 
       - name: Deploy via SSH
         run: |
-          ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << EOF
+          ssh -p $SSH_PORT $SSH_USER@$SSH_HOST << 'EOF'
             set -e
             cd /home/webapps/dev/chatbot-reino
-            echo "Trayendo los últimos cambios..."
+
+            echo "📥 Trayendo últimos cambios..."
             git pull origin dev
-            echo "Instalando dependencias..."
+
+            echo "📦 Instalando dependencias..."
             npm install
-            echo "Reiniciando servicio PM2..."
+
+            echo "🚀 Reiniciando PM2..."
             pm2 restart chatbot
 
+            echo "✅ Deploy completado"
           EOF
 
       - name: Notify on success

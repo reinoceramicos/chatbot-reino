@@ -11,11 +11,20 @@ const {
   isDuplicate,
   markAsRead,
 } = require("../helpers/receiveMessagesHandlers");
+const { sendTextMessage } = require("../services/whatsappServices");
 
 // Logger sencillo: todo a consola
 const log = (label, payload) => {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
   console.log(`[${ts}] ${label}`, payload);
+};
+
+// Normaliza números argentinos: 549XXXXXXXXXX -> 54XXXXXXXXXX
+const normalizePhoneNumber = (phone) => {
+  if (phone && phone.startsWith("549") && phone.length === 13) {
+    return "54" + phone.slice(3); // Quita el 9 después del código de país
+  }
+  return phone;
 };
 
 const verifyToken = (req, res) => {
@@ -145,7 +154,10 @@ const receiveMessage = async (req, res) => {
       if (metadata.phone_number_id) {
         try {
           await markAsRead(msg.id, metadata.phone_number_id);
-          log("MARK_AS_READ", { id: msg.id, phoneNumberId: metadata.phone_number_id });
+          log("MARK_AS_READ", {
+            id: msg.id,
+            phoneNumberId: metadata.phone_number_id,
+          });
         } catch (markErr) {
           log("MARK_AS_READ_ERROR", { id: msg.id, error: markErr.message });
         }
@@ -154,6 +166,24 @@ const receiveMessage = async (req, res) => {
           id: msg.id,
           reason: "missing phone_number_id",
         });
+      }
+
+      // Reenviar el texto recibido al mismo usuario
+      if (msg.type === "text" && msg.text?.body && metadata.phone_number_id) {
+        try {
+          const normalizedTo = normalizePhoneNumber(msg.from);
+          await sendTextMessage({
+            to: normalizedTo,
+            body: `El usuario envio: ${msg.text.body}`,
+            phoneNumberId: metadata.phone_number_id,
+          });
+          log("SEND_TEXT_OK", { to: normalizedTo });
+        } catch (sendErr) {
+          log("SEND_TEXT_ERROR", {
+            to: msg.from,
+            error: sendErr.message,
+          });
+        }
       }
     }
   } catch (err) {

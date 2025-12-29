@@ -1,15 +1,24 @@
-const log = (label, payload) => {
+import { IWhatsAppMessage, ISenderInfo } from "../types/whatsapp.types";
+
+export const log = (label: string, payload: any) => {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
   console.log(`[${ts}] ${label}`, payload);
 };
 
-async function handleTextMessage(msg, senderInfo) {
+export async function handleTextMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const text = msg.text?.body || "";
   log("TEXT_MESSAGE", { text, from: senderInfo.from });
   // Tu logica aqui
 }
 
-async function handleMediaMessage(msg, senderInfo, mediaType) {
+export async function handleMediaMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo,
+  mediaType: "image" | "audio" | "video" | "document" | "sticker"
+) {
   const media = msg[mediaType];
 
   log("MEDIA_MESSAGE", {
@@ -26,7 +35,10 @@ async function handleMediaMessage(msg, senderInfo, mediaType) {
   }
 }
 
-async function handleLocationMessage(msg, senderInfo) {
+export async function handleLocationMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const location = msg.location;
 
   log("LOCATION_MESSAGE", {
@@ -38,20 +50,26 @@ async function handleLocationMessage(msg, senderInfo) {
   });
 }
 
-async function handleContactsMessage(msg, senderInfo) {
+export async function handleContactsMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const contacts = msg.contacts || [];
 
   log("CONTACTS_MESSAGE", {
     count: contacts.length,
-    contacts: contacts.map((c) => ({
+    contacts: contacts.map((c: any) => ({
       name: c.name?.formatted_name,
-      phones: c.phones?.map((p) => p.phone),
+      phones: c.phones?.map((p: any) => p.phone),
     })),
     from: senderInfo.from,
   });
 }
 
-async function handleInteractiveMessage(msg, senderInfo) {
+export async function handleInteractiveMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const interactive = msg.interactive;
 
   log("INTERACTIVE_MESSAGE", {
@@ -65,7 +83,10 @@ async function handleInteractiveMessage(msg, senderInfo) {
   });
 }
 
-async function handleButtonReply(msg, senderInfo) {
+export async function handleButtonReply(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const button = msg.button;
 
   log("BUTTON_REPLY", {
@@ -75,7 +96,10 @@ async function handleButtonReply(msg, senderInfo) {
   });
 }
 
-async function handleReaction(msg, senderInfo) {
+export async function handleReaction(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const reaction = msg.reaction;
 
   log("REACTION", {
@@ -85,7 +109,10 @@ async function handleReaction(msg, senderInfo) {
   });
 }
 
-async function handleOrderMessage(msg, senderInfo) {
+export async function handleOrderMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   const order = msg.order;
 
   log("ORDER_MESSAGE", {
@@ -95,7 +122,10 @@ async function handleOrderMessage(msg, senderInfo) {
   });
 }
 
-async function handleSystemMessage(msg, senderInfo) {
+export async function handleSystemMessage(
+  msg: IWhatsAppMessage,
+  senderInfo: ISenderInfo
+) {
   log("SYSTEM_MESSAGE", {
     body: msg.system?.body,
     type: msg.system?.type,
@@ -104,30 +134,15 @@ async function handleSystemMessage(msg, senderInfo) {
 }
 
 // Utilidades
-async function isDuplicate(messageId) {
+export async function isDuplicate(messageId: string): Promise<boolean> {
   // Implementar logica de cache/DB para evitar duplicados
   // Meta puede enviar el mismo webhook multiples veces
   return false;
 }
 
-async function markAsRead(messageId, phoneNumberId) {
+export async function markAsRead(messageId: string, phoneNumberId: string) {
   // Implementar llamada a la API de WhatsApp para marcar como leido
   // POST /${phoneNumberId}/messages
   // { messaging_product: "whatsapp", status: "read", message_id: messageId }
   return;
 }
-
-module.exports = {
-  log,
-  handleTextMessage,
-  handleMediaMessage,
-  handleLocationMessage,
-  handleContactsMessage,
-  handleInteractiveMessage,
-  handleButtonReply,
-  handleReaction,
-  handleOrderMessage,
-  handleSystemMessage,
-  isDuplicate,
-  markAsRead,
-};

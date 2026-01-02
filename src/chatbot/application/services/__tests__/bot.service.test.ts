@@ -9,7 +9,6 @@ import { PrismaMessageRepository } from "../../../infrastructure/repositories/pr
 // Mocks
 const createMockCustomerRepository = (): jest.Mocked<CustomerRepositoryPort> => ({
   findByWaId: jest.fn(),
-  findById: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
 });
@@ -19,7 +18,6 @@ const createMockConversationRepository = (): jest.Mocked<ConversationRepositoryP
   findActiveByCustomerId: jest.fn(),
   create: jest.fn(),
   updateStatus: jest.fn(),
-  assignAgent: jest.fn(),
   resolve: jest.fn(),
 });
 

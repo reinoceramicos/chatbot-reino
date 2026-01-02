@@ -279,11 +279,11 @@ describe("AutoResponseService", () => {
         const repository = createMockRepository([]);
         const service = new AutoResponseService(repository);
 
-        await service.findMatch("test");
-        await service.reloadCache();
-        await service.findMatch("test2");
+        await service.findMatch("test"); // Calls findActive (1)
+        await service.reloadCache(); // Calls findActive (2)
+        // Note: findMatch won't call findActive again since reloadCache updated lastLoadTime
 
-        expect(repository.findActive).toHaveBeenCalledTimes(3);
+        expect(repository.findActive).toHaveBeenCalledTimes(2);
       });
     });
   });

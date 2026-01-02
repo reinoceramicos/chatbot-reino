@@ -1,0 +1,169 @@
+// Prisma Schema - Chatbot Reino Cerámicos
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// CLIENTES DE WHATSAPP
+// ============================================
+
+model Customer {
+  id          String   @id @default(cuid())
+  waId        String   @unique @map("wa_id") // Número de WhatsApp (ej: 5491123456789)
+  name        String?  // Nombre del perfil de WhatsApp
+  phone       String?  // Número formateado
+  email       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  conversations Conversation[]
+  messages      Message[]
+
+  @@map("customers")
+}
+
+// ============================================
+// CONVERSACIONES
+// ============================================
+
+enum ConversationStatus {
+  BOT        // Atendida por el bot
+  WAITING    // Esperando asignación de vendedor
+  ASSIGNED   // Asignada a un vendedor
+  RESOLVED   // Resuelta/cerrada
+}
+
+model Conversation {
+  id          String             @id @default(cuid())
+  customerId  String             @map("customer_id")
+  agentId     String?            @map("agent_id") // Vendedor asignado (null si es bot)
+  status      ConversationStatus @default(BOT)
+  context     Json?              // Contexto adicional (intenciones detectadas, etc)
+  startedAt   DateTime           @default(now()) @map("started_at")
+  resolvedAt  DateTime?          @map("resolved_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  customer Customer  @relation(fields: [customerId], references: [id])
+  agent    Agent?    @relation(fields: [agentId], references: [id])
+  messages Message[]
+
+  @@index([customerId])
+  @@index([agentId])
+  @@index([status])
+  @@map("conversations")
+}
+
+// ============================================
+// MENSAJES
+// ============================================
+
+enum MessageDirection {
+  INBOUND  // Cliente -> Bot/Vendedor
+  OUTBOUND // Bot/Vendedor -> Cliente
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STICKER
+  LOCATION
+  CONTACTS
+  INTERACTIVE
+  REACTION
+  SYSTEM
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String           @map("conversation_id")
+  customerId     String           @map("customer_id")
+  waMessageId    String?          @unique @map("wa_message_id") // ID de WhatsApp
+  direction      MessageDirection
+  type           MessageType      @default(TEXT)
+  content        String?          // Contenido del mensaje (texto)
+  mediaUrl       String?          @map("media_url")
+  mediaId        String?          @map("media_id")
+  metadata       Json?            // Datos adicionales (ubicación, contactos, etc)
+  sentByBot      Boolean          @default(false) @map("sent_by_bot")
+  sentByAgentId  String?          @map("sent_by_agent_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  sentByAgent  Agent?       @relation(fields: [sentByAgentId], references: [id])
+
+  @@index([conversationId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// VENDEDORES / AGENTES
+// ============================================
+
+enum AgentStatus {
+  AVAILABLE   // Disponible para recibir conversaciones
+  BUSY        // Ocupado (tiene conversaciones activas)
+  OFFLINE     // No disponible
+}
+
+model Agent {
+  id            String      @id @default(cuid())
+  name          String
+  waId          String?     @unique @map("wa_id") // WhatsApp del vendedor (para notificaciones)
+  email         String?     @unique
+  status        AgentStatus @default(OFFLINE)
+  maxConversations Int      @default(5) @map("max_conversations") // Máximo de conversaciones simultáneas
+  activeConversations Int   @default(0) @map("active_conversations")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  conversations Conversation[]
+  messages      Message[]
+
+  @@index([status])
+  @@map("agents")
+}
+
+// ============================================
+// RESPUESTAS AUTOMÁTICAS
+// ============================================
+
+model AutoResponse {
+  id          String   @id @default(cuid())
+  trigger     String   // Palabra clave o patrón que activa la respuesta
+  triggerType String   @default("keyword") @map("trigger_type") // keyword, regex, intent
+  response    String   // Respuesta a enviar
+  category    String?  // horarios, ubicacion, envios, pagos, etc
+  priority    Int      @default(0) // Mayor prioridad se evalúa primero
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([category])
+  @@map("auto_responses")
+}
+
+// ============================================
+// CONFIGURACIÓN DEL BOT
+// ============================================
+
+model BotConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // welcome_message, business_hours, etc
+  value     String   // Valor de la configuración
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("bot_config")
+}

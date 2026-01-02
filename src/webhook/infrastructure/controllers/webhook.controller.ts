@@ -7,9 +7,35 @@ import { envConfig } from "../../../shared/config/env.config";
 import { SendTextUseCase } from "../../../messaging/application/use-cases/send-text.use-case";
 import { WhatsAppCloudAdapter } from "../../../messaging/infrastructure/adapters/whatsapp-cloud.adapter";
 
+// Chatbot
+import {
+  BotService,
+  IncomingMessageData,
+} from "../../../chatbot/application/services/bot.service";
+import { AutoResponseService } from "../../../chatbot/application/services/auto-response.service";
+import { PrismaCustomerRepository } from "../../../chatbot/infrastructure/repositories/prisma-customer.repository";
+import { PrismaConversationRepository } from "../../../chatbot/infrastructure/repositories/prisma-conversation.repository";
+import { PrismaAutoResponseRepository } from "../../../chatbot/infrastructure/repositories/prisma-auto-response.repository";
+import { PrismaMessageRepository } from "../../../chatbot/infrastructure/repositories/prisma-message.repository";
+import { prisma } from "../../../shared/infrastructure/database/prisma.service";
+
+// Inicializar servicios
 const webhookService = new WebhookService();
 const messagingAdapter = new WhatsAppCloudAdapter();
 const sendTextUseCase = new SendTextUseCase(messagingAdapter);
+
+// Inicializar chatbot con repositorios
+const customerRepository = new PrismaCustomerRepository(prisma);
+const conversationRepository = new PrismaConversationRepository(prisma);
+const autoResponseRepository = new PrismaAutoResponseRepository(prisma);
+const messageRepository = new PrismaMessageRepository(prisma);
+const autoResponseService = new AutoResponseService(autoResponseRepository);
+const botService = new BotService(
+  customerRepository,
+  conversationRepository,
+  autoResponseService,
+  messageRepository
+);
 
 // Normaliza numeros argentinos: 549XXXXXXXXXX -> 54XXXXXXXXXX
 const normalizePhoneNumber = (phone: string): string => {
@@ -26,12 +52,20 @@ export const verifyToken = (req: Request, res: Response) => {
   const token = req.query["hub.verify_token"] as string;
   const challenge = req.query["hub.challenge"] as string;
 
-  if (mode === "subscribe" && token === envConfig.meta.verifyToken && challenge) {
+  if (
+    mode === "subscribe" &&
+    token === envConfig.meta.verifyToken &&
+    challenge
+  ) {
     log("WEBHOOK_VERIFIED", { mode, token });
     return res.status(200).send(challenge);
   }
 
-  log("WEBHOOK_VERIFY_FAIL", { mode, token, expected: envConfig.meta.verifyToken });
+  log("WEBHOOK_VERIFY_FAIL", {
+    mode,
+    token,
+    expected: envConfig.meta.verifyToken,
+  });
   return res.sendStatus(403);
 };
 
@@ -41,23 +75,71 @@ export const receiveMessage = async (req: Request, res: Response) => {
   try {
     const messages = await webhookService.processWebhook(req.body);
 
-    // Ejemplo: responder a mensajes de texto
     for (const message of messages) {
-      if (message.isText() && message.phoneNumberId) {
-        try {
+      try {
+        // Preparar datos para el bot
+        const messageData: IncomingMessageData = {
+          waId: message.sender.from,
+          waMessageId: message.id,
+          senderName: message.sender.name,
+          messageType: message.type,
+          content: message.content.text,
+          mediaId: message.content.media?.id,
+          metadata: {
+            location: message.content.location,
+            contacts: message.content.contacts,
+            interactive: message.content.interactive,
+          },
+        };
+
+        // Procesar mensaje con el bot
+        const botResponse = await botService.processMessage(messageData);
+
+        log("BOT_RESPONSE", {
+          shouldRespond: botResponse.shouldRespond,
+          transferToAgent: botResponse.transferToAgent,
+          conversationId: botResponse.conversationId,
+        });
+
+        // Si el bot debe responder, enviar mensaje
+        if (
+          botResponse.shouldRespond &&
+          botResponse.message &&
+          message.phoneNumberId
+        ) {
           const normalizedTo = normalizePhoneNumber(message.sender.from);
+
           await sendTextUseCase.execute({
             to: normalizedTo,
-            body: `El usuario envio: ${message.getText()}`,
+            body: botResponse.message,
             phoneNumberId: message.phoneNumberId,
           });
-          log("SEND_TEXT_OK", { to: normalizedTo });
-        } catch (sendErr: any) {
-          log("SEND_TEXT_ERROR", {
-            to: message.sender.from,
-            error: sendErr.message,
+
+          // Guardar mensaje saliente
+          await botService.saveOutgoingMessage(
+            botResponse.conversationId,
+            botResponse.customerId,
+            botResponse.message
+          );
+
+          log("BOT_SENT_MESSAGE", {
+            to: normalizedTo,
+            message: botResponse.message,
           });
+
+          // Si debe transferir a agente, notificar (TODO: implementar en Fase 4)
+          if (botResponse.transferToAgent) {
+            log("TRANSFER_REQUESTED", {
+              conversationId: botResponse.conversationId,
+              customerId: botResponse.customerId,
+            });
+          }
         }
+      } catch (msgErr: any) {
+        log("MESSAGE_PROCESSING_ERROR", {
+          messageId: message.id,
+          error: msgErr.message,
+        });
       }
     }
   } catch (err: any) {

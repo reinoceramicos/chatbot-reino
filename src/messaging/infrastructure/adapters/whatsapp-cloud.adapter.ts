@@ -57,6 +57,8 @@ export class WhatsAppCloudAdapter implements MessagingPort {
         return this.buildContactsPayload(base, message);
       case "reaction":
         return this.buildReactionPayload(base, message);
+      case "interactive":
+        return this.buildInteractivePayload(base, message);
       default:
         throw new Error(`Unsupported message type: ${message.type}`);
     }
@@ -164,6 +166,55 @@ export class WhatsAppCloudAdapter implements MessagingPort {
         message_id: message.content.reaction?.messageId,
         emoji: message.content.reaction?.emoji,
       },
+    };
+  }
+
+  private buildInteractivePayload(base: WhatsAppPayload, message: Message): WhatsAppPayload {
+    const interactive = message.content.interactive;
+    if (!interactive) {
+      throw new Error("Interactive content is required for interactive messages");
+    }
+
+    const interactivePayload: Record<string, any> = {
+      type: interactive.type,
+      body: { text: interactive.body },
+    };
+
+    if (interactive.header) {
+      interactivePayload.header = { type: "text", text: interactive.header };
+    }
+
+    if (interactive.footer) {
+      interactivePayload.footer = { text: interactive.footer };
+    }
+
+    if (interactive.type === "button" && interactive.buttons) {
+      interactivePayload.action = {
+        buttons: interactive.buttons.map((btn) => ({
+          type: "reply",
+          reply: {
+            id: btn.id,
+            title: btn.title,
+          },
+        })),
+      };
+    } else if (interactive.type === "list" && interactive.sections) {
+      interactivePayload.action = {
+        button: interactive.buttonText || "Ver opciones",
+        sections: interactive.sections.map((section) => ({
+          title: section.title,
+          rows: section.rows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            description: row.description,
+          })),
+        })),
+      };
+    }
+
+    return {
+      ...base,
+      interactive: interactivePayload,
     };
   }
 }

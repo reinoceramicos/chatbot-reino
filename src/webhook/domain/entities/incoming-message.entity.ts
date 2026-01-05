@@ -84,7 +84,43 @@ export class IncomingMessage {
     return ["image", "audio", "voice", "video", "document", "sticker"].includes(this.type);
   }
 
+  isInteractive(): boolean {
+    return this.type === "interactive";
+  }
+
+  isButtonReply(): boolean {
+    return this.type === "interactive" && this.content.interactive?.type === "button_reply";
+  }
+
+  isListReply(): boolean {
+    return this.type === "interactive" && this.content.interactive?.type === "list_reply";
+  }
+
   getText(): string {
     return this.content.text || "";
+  }
+
+  getInteractiveReplyId(): string | undefined {
+    if (this.content.interactive?.buttonReply) {
+      return this.content.interactive.buttonReply.id;
+    }
+    if (this.content.interactive?.listReply) {
+      return this.content.interactive.listReply.id;
+    }
+    return undefined;
+  }
+
+  getInteractiveReplyTitle(): string | undefined {
+    if (this.content.interactive?.buttonReply) {
+      return this.content.interactive.buttonReply.title;
+    }
+    if (this.content.interactive?.listReply) {
+      return this.content.interactive.listReply.title;
+    }
+    return undefined;
+  }
+
+  getInteractiveReplyDescription(): string | undefined {
+    return this.content.interactive?.listReply?.description;
   }
 }

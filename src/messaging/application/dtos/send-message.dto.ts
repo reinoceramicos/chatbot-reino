@@ -67,3 +67,25 @@ export interface SendReactionDto {
   emoji: string;
   phoneNumberId?: string;
 }
+
+export interface SendButtonMessageDto {
+  to: string;
+  body: string;
+  buttons: Array<{ id: string; title: string }>;
+  header?: string;
+  footer?: string;
+  phoneNumberId?: string;
+}
+
+export interface SendListMessageDto {
+  to: string;
+  body: string;
+  buttonText: string;
+  sections: Array<{
+    title?: string;
+    rows: Array<{ id: string; title: string; description?: string }>;
+  }>;
+  header?: string;
+  footer?: string;
+  phoneNumberId?: string;
+}

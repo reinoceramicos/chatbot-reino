@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx prisma studio)"
+      "Bash(npx prisma studio)",
+      "Bash(npm test:*)"
     ]
   }
 }

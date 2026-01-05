@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { Conversation, ConversationStatus } from "../../domain/entities/conversation.entity";
-import { ConversationRepositoryPort } from "../../domain/ports/conversation.repository.port";
+import { Conversation, ConversationStatus, FlowType } from "../../domain/entities/conversation.entity";
+import { ConversationRepositoryPort, UpdateFlowParams } from "../../domain/ports/conversation.repository.port";
 
 export class PrismaConversationRepository implements ConversationRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
@@ -69,6 +69,34 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return this.mapToEntity(updated);
   }
 
+  async updateFlow(id: string, params: UpdateFlowParams): Promise<Conversation> {
+    const updated = await this.prisma.conversation.update({
+      where: { id },
+      data: {
+        flowType: params.flowType,
+        flowStep: params.flowStep,
+        flowData: params.flowData || undefined,
+        flowStartedAt: params.flowStartedAt,
+      },
+    });
+
+    return this.mapToEntity(updated);
+  }
+
+  async clearFlow(id: string): Promise<Conversation> {
+    const updated = await this.prisma.conversation.update({
+      where: { id },
+      data: {
+        flowType: null,
+        flowStep: null,
+        flowData: null,
+        flowStartedAt: null,
+      },
+    });
+
+    return this.mapToEntity(updated);
+  }
+
   private mapToEntity(data: any): Conversation {
     return new Conversation({
       id: data.id,
@@ -79,6 +107,11 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
       startedAt: data.startedAt,
       resolvedAt: data.resolvedAt || undefined,
       updatedAt: data.updatedAt,
+      // Campos de flujo
+      flowType: data.flowType as FlowType,
+      flowStep: data.flowStep || undefined,
+      flowData: data.flowData as Record<string, any> | undefined,
+      flowStartedAt: data.flowStartedAt || undefined,
     });
   }
 }

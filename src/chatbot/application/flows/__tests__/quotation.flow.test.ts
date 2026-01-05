@@ -36,6 +36,10 @@ describe("Quotation Flow", () => {
       expect(quotationFlow.hasStep("select_category")).toBe(true);
       expect(quotationFlow.hasStep("ask_details")).toBe(true);
       expect(quotationFlow.hasStep("ask_quantity")).toBe(true);
+      expect(quotationFlow.hasStep("ask_location_method")).toBe(true);
+      expect(quotationFlow.hasStep("waiting_location")).toBe(true);
+      expect(quotationFlow.hasStep("select_zone")).toBe(true);
+      expect(quotationFlow.hasStep("select_store")).toBe(true);
       expect(quotationFlow.hasStep("ask_contact")).toBe(true);
       expect(quotationFlow.hasStep("confirm")).toBe(true);
     });
@@ -105,6 +109,99 @@ describe("Quotation Flow", () => {
 
       it("should be a text type", () => {
         expect(step.prompt.type).toBe("text");
+      });
+
+      it("should navigate to ask_location_method", () => {
+        expect(step.nextStep).toBe("ask_location_method");
+      });
+    });
+
+    describe("ask_location_method step", () => {
+      let step: FlowStep;
+
+      beforeAll(() => {
+        step = quotationFlow.getStep("ask_location_method")!;
+      });
+
+      it("should be a button type", () => {
+        expect(step.prompt.type).toBe("button");
+      });
+
+      it("should have GPS and zone options", () => {
+        expect(step.prompt.buttons).toBeDefined();
+        expect(step.prompt.buttons!.length).toBe(2);
+
+        const hasGps = step.prompt.buttons!.some((b) => b.id.includes("gps"));
+        const hasZone = step.prompt.buttons!.some((b) => b.id.includes("zone"));
+        expect(hasGps).toBe(true);
+        expect(hasZone).toBe(true);
+      });
+
+      it("should have dynamic nextStep function", () => {
+        expect(typeof step.nextStep).toBe("function");
+      });
+
+      it("should navigate to select_zone when zone is selected", () => {
+        const nextStepFn = step.nextStep as (input: string) => string;
+        expect(nextStepFn("location_zone")).toBe("select_zone");
+      });
+
+      it("should navigate to waiting_location when GPS is selected", () => {
+        const nextStepFn = step.nextStep as (input: string) => string;
+        expect(nextStepFn("location_gps")).toBe("waiting_location");
+      });
+    });
+
+    describe("waiting_location step", () => {
+      let step: FlowStep;
+
+      beforeAll(() => {
+        step = quotationFlow.getStep("waiting_location")!;
+      });
+
+      it("should be a text type", () => {
+        expect(step.prompt.type).toBe("text");
+      });
+
+      it("should accept any input type", () => {
+        expect(step.expectedInput).toBe("any");
+      });
+
+      it("should navigate to ask_contact", () => {
+        expect(step.nextStep).toBe("ask_contact");
+      });
+    });
+
+    describe("select_zone step", () => {
+      let step: FlowStep;
+
+      beforeAll(() => {
+        step = quotationFlow.getStep("select_zone")!;
+      });
+
+      it("should be a list type", () => {
+        expect(step.prompt.type).toBe("list");
+      });
+
+      it("should have zone sections", () => {
+        expect(step.prompt.sections).toBeDefined();
+        expect(step.prompt.sections!.length).toBeGreaterThan(0);
+      });
+
+      it("should navigate to select_store", () => {
+        expect(step.nextStep).toBe("select_store");
+      });
+    });
+
+    describe("select_store step", () => {
+      let step: FlowStep;
+
+      beforeAll(() => {
+        step = quotationFlow.getStep("select_store")!;
+      });
+
+      it("should be a list type", () => {
+        expect(step.prompt.type).toBe("list");
       });
 
       it("should navigate to ask_contact", () => {

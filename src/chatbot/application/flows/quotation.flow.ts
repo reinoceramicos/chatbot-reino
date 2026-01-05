@@ -64,6 +64,111 @@ steps.set("ask_quantity", {
   },
   expectedInput: "text",
   saveAs: "quantity",
+  nextStep: "ask_location_method",
+});
+
+// Step 3b: Preguntar método de ubicación (híbrido)
+steps.set("ask_location_method", {
+  id: "ask_location_method",
+  prompt: {
+    type: "button",
+    body: "Para conectarte con el Reino más cercano, ¿cómo preferís indicar tu ubicación?",
+    header: "Ubicación",
+    footer: "Tenemos 24 locales en Buenos Aires",
+    buttons: [
+      { id: "location_gps", title: "Compartir ubicación" },
+      { id: "location_zone", title: "Elegir zona" },
+    ],
+  },
+  expectedInput: "button_reply",
+  saveAs: "locationMethod",
+  nextStep: (input: string) => {
+    if (input === "location_zone") {
+      return "select_zone";
+    }
+    // Si elige GPS, el bot esperará el mensaje de ubicación
+    return "waiting_location";
+  },
+});
+
+// Step 3c: Esperando ubicación GPS
+steps.set("waiting_location", {
+  id: "waiting_location",
+  prompt: {
+    type: "text",
+    body: "Perfecto, enviame tu ubicación usando el botón de adjuntar 📎 > Ubicación en WhatsApp.\n\n_Si preferís elegir la zona manualmente, escribí *zona*_",
+  },
+  expectedInput: "any", // Puede ser location o text (si escribe "zona")
+  saveAs: "locationInput",
+  nextStep: "ask_contact", // El procesamiento de ubicación se hace en bot.service
+});
+
+// Step 3d: Seleccionar zona manualmente
+steps.set("select_zone", {
+  id: "select_zone",
+  prompt: {
+    type: "list",
+    body: "Seleccioná la zona donde te encontrás:",
+    buttonText: "Ver zonas",
+    sections: [
+      {
+        title: "Capital Federal",
+        rows: [
+          { id: "zone_caba_norte", title: "CABA Norte", description: "Belgrano, Palermo, Núñez" },
+          { id: "zone_caba_centro", title: "CABA Centro", description: "Caballito, Almagro, Boedo" },
+          { id: "zone_caba_oeste", title: "CABA Oeste", description: "Flores, Liniers, Mataderos" },
+        ],
+      },
+      {
+        title: "Zona Norte GBA",
+        rows: [
+          { id: "zone_norte_gba", title: "Zona Norte GBA", description: "Vicente López, San Isidro, Tigre" },
+        ],
+      },
+      {
+        title: "Zona Sur GBA",
+        rows: [
+          { id: "zone_sur", title: "Zona Sur", description: "Quilmes, Lanús, Avellaneda, Lomas" },
+        ],
+      },
+      {
+        title: "Zona Oeste GBA",
+        rows: [
+          { id: "zone_oeste", title: "Zona Oeste", description: "Morón, San Justo, Ituzaingó, Merlo" },
+        ],
+      },
+      {
+        title: "La Plata",
+        rows: [
+          { id: "zone_la_plata", title: "La Plata", description: "La Plata y alrededores" },
+        ],
+      },
+    ],
+  },
+  expectedInput: "list_reply",
+  saveAs: "selectedZone",
+  nextStep: "select_store",
+});
+
+// Step 3e: Seleccionar tienda de la zona (se genera dinámicamente)
+steps.set("select_store", {
+  id: "select_store",
+  prompt: {
+    type: "list",
+    body: "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?",
+    buttonText: "Ver Reinos",
+    sections: [
+      {
+        title: "Reinos disponibles",
+        rows: [
+          // Las tiendas se generan dinámicamente en el bot.service basado en la zona seleccionada
+          { id: "store_placeholder", title: "Cargando tiendas...", description: "" },
+        ],
+      },
+    ],
+  },
+  expectedInput: "list_reply",
+  saveAs: "selectedStoreCode",
   nextStep: "ask_contact",
 });
 

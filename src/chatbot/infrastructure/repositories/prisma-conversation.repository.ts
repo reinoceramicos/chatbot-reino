@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { Conversation, ConversationStatus, FlowType } from "../../domain/entities/conversation.entity";
 import { ConversationRepositoryPort, UpdateFlowParams } from "../../domain/ports/conversation.repository.port";
 
@@ -89,7 +89,7 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
       data: {
         flowType: null,
         flowStep: null,
-        flowData: null,
+        flowData: Prisma.JsonNull,
         flowStartedAt: null,
       },
     });

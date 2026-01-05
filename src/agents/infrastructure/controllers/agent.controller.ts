@@ -1,0 +1,326 @@
+import { Response } from "express";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { AuthPort } from "../../domain/ports/auth.port";
+import { AgentConversationService } from "../../application/services/agent-conversation.service";
+import { AgentRepository } from "../../domain/ports/agent.repository.port";
+
+// Use cases para enviar mensajes
+import { SendTextUseCase } from "../../../messaging/application/use-cases/send-text.use-case";
+import { WhatsAppCloudAdapter } from "../../../messaging/infrastructure/adapters/whatsapp-cloud.adapter";
+import { envConfig } from "../../../shared/config/env.config";
+
+const messagingAdapter = new WhatsAppCloudAdapter();
+const sendTextUseCase = new SendTextUseCase(messagingAdapter);
+
+export class AgentController {
+  constructor(
+    private readonly authService: AuthPort,
+    private readonly conversationService: AgentConversationService,
+    private readonly agentRepository: AgentRepository
+  ) {}
+
+  // Auth endpoints
+  async login(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        res.status(400).json({ error: "Email y contraseña son requeridos" });
+        return;
+      }
+
+      const result = await this.authService.login(email, password);
+
+      if (!result.success) {
+        res.status(401).json({ error: result.error });
+        return;
+      }
+
+      res.json({
+        token: result.token,
+        agent: result.agent,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      await this.authService.logout(req.agent.agentId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async register(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { name, email, password, storeId } = req.body;
+
+      if (!name || !email || !password) {
+        res.status(400).json({ error: "Nombre, email y contraseña son requeridos" });
+        return;
+      }
+
+      const result = await this.authService.register({ name, email, password, storeId });
+
+      if (!result.success) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+
+      res.status(201).json({
+        token: result.token,
+        agent: result.agent,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async getProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const agent = await this.agentRepository.findById(req.agent.agentId);
+
+      if (!agent) {
+        res.status(404).json({ error: "Agente no encontrado" });
+        return;
+      }
+
+      res.json({
+        id: agent.id,
+        name: agent.name,
+        email: agent.email,
+        storeId: agent.storeId,
+        status: agent.status,
+        maxConversations: agent.maxConversations,
+        activeConversations: agent.activeConversations,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async updateStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { status } = req.body;
+
+      if (!["AVAILABLE", "BUSY", "OFFLINE"].includes(status)) {
+        res.status(400).json({ error: "Estado inválido" });
+        return;
+      }
+
+      const agent = await this.agentRepository.updateStatus(req.agent.agentId, status);
+
+      res.json({
+        id: agent.id,
+        status: agent.status,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  // Conversation endpoints
+  async getWaitingConversations(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      // Solo muestra conversaciones de su tienda si tiene una asignada
+      const conversations = await this.conversationService.getWaitingConversations(
+        req.agent.storeId
+      );
+
+      res.json({ conversations });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async getMyConversations(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const conversations = await this.conversationService.getAgentConversations(
+        req.agent.agentId
+      );
+
+      res.json({ conversations });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async getConversation(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const conversation = await this.conversationService.getConversationDetail(conversationId);
+
+      if (!conversation) {
+        res.status(404).json({ error: "Conversación no encontrada" });
+        return;
+      }
+
+      res.json({ conversation });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async assignConversation(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const success = await this.conversationService.assignConversation(
+        conversationId,
+        req.agent.agentId
+      );
+
+      if (!success) {
+        res.status(400).json({ error: "No se pudo asignar la conversación" });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async resolveConversation(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const success = await this.conversationService.resolveConversation(
+        conversationId,
+        req.agent.agentId
+      );
+
+      if (!success) {
+        res.status(400).json({ error: "No se pudo resolver la conversación" });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async transferToBot(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const success = await this.conversationService.transferToBot(
+        conversationId,
+        req.agent.agentId
+      );
+
+      if (!success) {
+        res.status(400).json({ error: "No se pudo transferir la conversación" });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async sendMessage(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+      const { message } = req.body;
+
+      if (!message) {
+        res.status(400).json({ error: "Mensaje requerido" });
+        return;
+      }
+
+      // Obtener la conversación para saber a quién enviar
+      const conversation = await this.conversationService.getConversationDetail(conversationId);
+
+      if (!conversation) {
+        res.status(404).json({ error: "Conversación no encontrada" });
+        return;
+      }
+
+      // Verificar que la conversación está asignada al agente
+      if (conversation.status !== "ASSIGNED") {
+        res.status(400).json({ error: "La conversación no está asignada" });
+        return;
+      }
+
+      // Enviar mensaje por WhatsApp
+      const result = await sendTextUseCase.execute({
+        to: conversation.customerWaId,
+        body: message,
+        phoneNumberId: envConfig.meta.phoneNumberId,
+      });
+
+      // Guardar mensaje en la base de datos
+      await this.conversationService.saveAgentMessage(
+        conversationId,
+        req.agent.agentId,
+        message,
+        result.messageId
+      );
+
+      res.json({
+        success: true,
+        messageId: result.messageId,
+      });
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ error: "Error al enviar el mensaje" });
+    }
+  }
+}

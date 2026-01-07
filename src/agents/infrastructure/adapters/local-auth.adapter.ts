@@ -7,6 +7,7 @@ import {
   RegisterData,
 } from "../../domain/ports/auth.port";
 import { AgentRepository } from "../../domain/ports/agent.repository.port";
+import { AgentRole } from "../../domain/entities/agent.entity";
 import { envConfig } from "../../../shared/config/env.config";
 
 const SALT_ROUNDS = 10;
@@ -38,11 +39,13 @@ export class LocalAuthAdapter implements AuthPort {
     return bcrypt.compare(password, hash);
   }
 
-  generateToken(agentId: string, email: string, storeId?: string): string {
+  generateToken(agentId: string, email: string, role: AgentRole, storeId?: string, zoneId?: string): string {
     const payload: TokenPayload = {
       agentId,
       email,
+      role,
       storeId,
+      zoneId,
     };
 
     return jwt.sign(payload, this.jwtSecret, {
@@ -79,7 +82,7 @@ export class LocalAuthAdapter implements AuthPort {
     await this.agentRepository.updateLastLogin(agent.id!);
     await this.agentRepository.updateStatus(agent.id!, "AVAILABLE");
 
-    const token = this.generateToken(agent.id!, agent.email!, agent.storeId);
+    const token = this.generateToken(agent.id!, agent.email!, agent.role, agent.storeId, agent.zoneId);
 
     return {
       success: true,
@@ -88,7 +91,9 @@ export class LocalAuthAdapter implements AuthPort {
         id: agent.id!,
         name: agent.name,
         email: agent.email!,
+        role: agent.role,
         storeId: agent.storeId,
+        zoneId: agent.zoneId,
         status: "AVAILABLE",
       },
     };
@@ -106,18 +111,21 @@ export class LocalAuthAdapter implements AuthPort {
     }
 
     const hashedPassword = await this.hashPassword(data.password);
+    const role = data.role || "SELLER";
 
     const agent = await this.agentRepository.create({
       name: data.name,
       email: data.email,
       password: hashedPassword,
+      role,
       storeId: data.storeId,
+      zoneId: data.zoneId,
       status: "OFFLINE",
       maxConversations: 5,
       activeConversations: 0,
     });
 
-    const token = this.generateToken(agent.id!, agent.email!, agent.storeId);
+    const token = this.generateToken(agent.id!, agent.email!, agent.role, agent.storeId, agent.zoneId);
 
     return {
       success: true,
@@ -126,7 +134,9 @@ export class LocalAuthAdapter implements AuthPort {
         id: agent.id!,
         name: agent.name,
         email: agent.email!,
+        role: agent.role,
         storeId: agent.storeId,
+        zoneId: agent.zoneId,
         status: agent.status,
       },
     };

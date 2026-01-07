@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { AgentController } from "../controllers/agent.controller";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
+import { requireManagerOrAbove } from "../middleware/role.middleware";
 import { LocalAuthAdapter } from "../adapters/local-auth.adapter";
 import { AgentConversationService } from "../../application/services/agent-conversation.service";
 import { PrismaAgentRepository } from "../repositories/prisma-agent.repository";
@@ -44,6 +45,10 @@ agentRouter.get("/conversations/waiting", (req: AuthenticatedRequest, res) =>
 );
 agentRouter.get("/conversations/mine", (req: AuthenticatedRequest, res) =>
   agentController.getMyConversations(req, res)
+);
+// Solo supervisores y superiores pueden ver todas las conversaciones
+agentRouter.get("/conversations/all", requireManagerOrAbove, (req: AuthenticatedRequest, res) =>
+  agentController.getAllConversations(req, res)
 );
 agentRouter.get("/conversations/:conversationId", (req: AuthenticatedRequest, res) =>
   agentController.getConversation(req, res)

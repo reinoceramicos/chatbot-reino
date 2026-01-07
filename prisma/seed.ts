@@ -1,8 +1,38 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import * as bcrypt from "bcrypt";
 
-// @ts-expect-error Prisma 7 types
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined");
+}
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+// Zonas geográficas
+const zonesData = [
+  { code: "CABA_NORTE", name: "CABA Norte" },
+  { code: "CABA_CENTRO", name: "CABA Centro" },
+  { code: "CABA_OESTE", name: "CABA Oeste" },
+  { code: "ZONA_NORTE_GBA", name: "Zona Norte GBA" },
+  { code: "ZONA_SUR", name: "Zona Sur" },
+  { code: "ZONA_OESTE", name: "Zona Oeste" },
+  { code: "LA_PLATA", name: "La Plata" },
+];
+
+// Mapeo de zona nombre a código
+const zoneNameToCode: Record<string, string> = {
+  "CABA Norte": "CABA_NORTE",
+  "CABA Centro": "CABA_CENTRO",
+  "CABA Oeste": "CABA_OESTE",
+  "Zona Norte GBA": "ZONA_NORTE_GBA",
+  "Zona Sur": "ZONA_SUR",
+  "Zona Oeste": "ZONA_OESTE",
+  "La Plata": "LA_PLATA",
+};
 
 // Datos de los 25 Reinos (tiendas)
 const storesData = [
@@ -353,15 +383,141 @@ async function main() {
 
   console.log("Created bot config");
 
-  // Crear tiendas (Reinos)
+  // Crear zonas
+  await prisma.zone.deleteMany();
+  const zoneMap: Record<string, string> = {};
+  for (const zone of zonesData) {
+    const created = await prisma.zone.create({
+      data: zone,
+    });
+    zoneMap[zone.code] = created.id;
+  }
+  console.log(`Created ${zonesData.length} zones`);
+
+  // Crear tiendas (Reinos) con relación a zonas
   await prisma.store.deleteMany();
+  const storeMap: Record<string, string> = {};
   for (const store of storesData) {
-    await prisma.store.create({
-      data: store,
+    const zoneCode = zoneNameToCode[store.zone];
+    const created = await prisma.store.create({
+      data: {
+        code: store.code,
+        name: store.name,
+        address: store.address,
+        zoneName: store.zone,
+        zoneId: zoneCode ? zoneMap[zoneCode] : undefined,
+        latitude: store.latitude,
+        longitude: store.longitude,
+        googleMapsUrl: store.googleMapsUrl,
+      },
+    });
+    storeMap[store.code] = created.id;
+  }
+  console.log(`Created ${storesData.length} stores (Reinos)`);
+
+  // Crear usuarios de ejemplo
+  await prisma.agent.deleteMany();
+  const hashedPassword = await bcrypt.hash("123456", 10);
+
+  // Admin para desarrollo (contraseña: admin)
+  const adminPassword = await bcrypt.hash("admin", 10);
+  await prisma.agent.create({
+    data: {
+      name: "Admin",
+      email: "admin@reino.com",
+      password: adminPassword,
+      role: "REGIONAL_MANAGER",
+      status: "OFFLINE",
+      maxConversations: 99,
+      activeConversations: 0,
+    },
+  });
+
+  // Gerente regional (ve todo)
+  await prisma.agent.create({
+    data: {
+      name: "Carlos Gerente",
+      email: "gerente@reino.com",
+      password: hashedPassword,
+      role: "REGIONAL_MANAGER",
+      status: "OFFLINE",
+      maxConversations: 10,
+      activeConversations: 0,
+    },
+  });
+
+  // Zonales (uno por zona)
+  const zonalData = [
+    { name: "María Zonal Norte", email: "zonal.norte@reino.com", zoneCode: "CABA_NORTE" },
+    { name: "Pedro Zonal Sur", email: "zonal.sur@reino.com", zoneCode: "ZONA_SUR" },
+    { name: "Laura Zonal Oeste", email: "zonal.oeste@reino.com", zoneCode: "ZONA_OESTE" },
+  ];
+
+  for (const zonal of zonalData) {
+    await prisma.agent.create({
+      data: {
+        name: zonal.name,
+        email: zonal.email,
+        password: hashedPassword,
+        role: "ZONE_SUPERVISOR",
+        zoneId: zoneMap[zonal.zoneCode],
+        status: "OFFLINE",
+        maxConversations: 10,
+        activeConversations: 0,
+      },
     });
   }
 
-  console.log(`Created ${storesData.length} stores (Reinos)`);
+  // Encargados (uno por cada reino de ejemplo)
+  const managerData = [
+    { name: "Juan Encargado R1", email: "encargado.r1@reino.com", storeCode: "REINO_1" },
+    { name: "Ana Encargado R2", email: "encargado.r2@reino.com", storeCode: "REINO_2" },
+    { name: "Luis Encargado R10", email: "encargado.r10@reino.com", storeCode: "REINO_10" },
+  ];
+
+  for (const manager of managerData) {
+    await prisma.agent.create({
+      data: {
+        name: manager.name,
+        email: manager.email,
+        password: hashedPassword,
+        role: "MANAGER",
+        storeId: storeMap[manager.storeCode],
+        status: "OFFLINE",
+        maxConversations: 8,
+        activeConversations: 0,
+      },
+    });
+  }
+
+  // Vendedores (2 por cada reino de ejemplo)
+  const sellerData = [
+    { name: "Roberto Vendedor", email: "vendedor1.r1@reino.com", storeCode: "REINO_1" },
+    { name: "Sofía Vendedor", email: "vendedor2.r1@reino.com", storeCode: "REINO_1" },
+    { name: "Diego Vendedor", email: "vendedor1.r2@reino.com", storeCode: "REINO_2" },
+    { name: "Camila Vendedor", email: "vendedor2.r2@reino.com", storeCode: "REINO_2" },
+    { name: "Martín Vendedor", email: "vendedor1.r10@reino.com", storeCode: "REINO_10" },
+    { name: "Lucía Vendedor", email: "vendedor2.r10@reino.com", storeCode: "REINO_10" },
+  ];
+
+  for (const seller of sellerData) {
+    await prisma.agent.create({
+      data: {
+        name: seller.name,
+        email: seller.email,
+        password: hashedPassword,
+        role: "SELLER",
+        storeId: storeMap[seller.storeCode],
+        status: "OFFLINE",
+        maxConversations: 5,
+        activeConversations: 0,
+      },
+    });
+  }
+
+  console.log("Created sample agents (1 admin, 1 gerente, 3 zonales, 3 encargados, 6 vendedores)");
+  console.log("Admin: admin@reino.com / admin");
+  console.log("All other passwords are: 123456");
   console.log("Seeding completed!");
 }
 

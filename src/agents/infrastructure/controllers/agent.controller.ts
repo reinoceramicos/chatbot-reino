@@ -145,10 +145,12 @@ export class AgentController {
         return;
       }
 
-      // Solo muestra conversaciones de su tienda si tiene una asignada
-      const conversations = await this.conversationService.getWaitingConversations(
-        req.agent.storeId
-      );
+      const conversations = await this.conversationService.getWaitingConversations({
+        agentId: req.agent.agentId,
+        role: req.agent.role,
+        storeId: req.agent.storeId,
+        zoneId: req.agent.zoneId,
+      });
 
       res.json({ conversations });
     } catch (error: any) {
@@ -163,9 +165,32 @@ export class AgentController {
         return;
       }
 
-      const conversations = await this.conversationService.getAgentConversations(
-        req.agent.agentId
-      );
+      const conversations = await this.conversationService.getAgentConversations({
+        agentId: req.agent.agentId,
+        role: req.agent.role,
+        storeId: req.agent.storeId,
+        zoneId: req.agent.zoneId,
+      });
+
+      res.json({ conversations });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
+  async getAllConversations(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const conversations = await this.conversationService.getAllConversations({
+        agentId: req.agent.agentId,
+        role: req.agent.role,
+        storeId: req.agent.storeId,
+        zoneId: req.agent.zoneId,
+      });
 
       res.json({ conversations });
     } catch (error: any) {

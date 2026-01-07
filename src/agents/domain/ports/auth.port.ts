@@ -1,8 +1,12 @@
+import { AgentRole } from "../entities/agent.entity";
+
 export interface AuthenticatedAgent {
   id: string;
   name: string;
   email: string;
+  role: AgentRole;
   storeId?: string;
+  zoneId?: string;
   status: string;
 }
 
@@ -16,14 +20,18 @@ export interface LoginResult {
 export interface TokenPayload {
   agentId: string;
   email: string;
+  role: AgentRole;
   storeId?: string;
+  zoneId?: string;
 }
 
 export interface RegisterData {
   name: string;
   email: string;
   password: string;
+  role?: AgentRole;
   storeId?: string;
+  zoneId?: string;
 }
 
 /**
@@ -59,7 +67,7 @@ export interface AuthPort {
   /**
    * Genera un nuevo token para un agente (usado internamente o para refresh)
    */
-  generateToken(agentId: string, email: string, storeId?: string): string;
+  generateToken(agentId: string, email: string, role: AgentRole, storeId?: string, zoneId?: string): string;
 
   /**
    * Cambia la contraseña de un agente

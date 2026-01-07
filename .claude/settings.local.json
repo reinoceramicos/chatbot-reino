@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx prisma studio)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx ts-node:*)"
     ]
   }
 }

@@ -1,5 +1,13 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { AgentRepository } from "../../domain/ports/agent.repository.port";
+import { AgentRole } from "../../domain/entities/agent.entity";
+
+export interface ConversationFilter {
+  agentId: string;
+  role: AgentRole;
+  storeId?: string;
+  zoneId?: string;
+}
 
 export interface ConversationSummary {
   id: string;
@@ -9,6 +17,8 @@ export interface ConversationSummary {
   status: string;
   storeId?: string;
   storeName?: string;
+  agentId?: string;
+  agentName?: string;
   lastMessage?: string;
   lastMessageAt?: Date;
   startedAt: Date;
@@ -37,12 +47,52 @@ export class AgentConversationService {
     private readonly agentRepository: AgentRepository
   ) {}
 
-  async getWaitingConversations(storeId?: string): Promise<ConversationSummary[]> {
-    const whereClause: any = { status: "WAITING" };
+  /**
+   * Construye el filtro WHERE según el rol del agente
+   */
+  private buildRoleFilter(filter: ConversationFilter, baseStatus?: string): any {
+    const whereClause: any = {};
 
-    if (storeId) {
-      whereClause.storeId = storeId;
+    if (baseStatus) {
+      whereClause.status = baseStatus;
     }
+
+    switch (filter.role) {
+      case "REGIONAL_MANAGER":
+        // Ve todas las conversaciones
+        break;
+      case "ZONE_SUPERVISOR":
+        // Ve conversaciones de todas las tiendas de su zona
+        if (filter.zoneId) {
+          whereClause.store = { zoneId: filter.zoneId };
+        }
+        break;
+      case "MANAGER":
+        // Ve conversaciones de su tienda
+        if (filter.storeId) {
+          whereClause.storeId = filter.storeId;
+        }
+        break;
+      case "SELLER":
+      default:
+        // Solo ve sus propias conversaciones asignadas
+        if (baseStatus === "WAITING") {
+          // Para waiting, filtra por tienda
+          if (filter.storeId) {
+            whereClause.storeId = filter.storeId;
+          }
+        } else {
+          // Para assigned, solo las suyas
+          whereClause.agentId = filter.agentId;
+        }
+        break;
+    }
+
+    return whereClause;
+  }
+
+  async getWaitingConversations(filter: ConversationFilter): Promise<ConversationSummary[]> {
+    const whereClause = this.buildRoleFilter(filter, "WAITING");
 
     const conversations = await this.prisma.conversation.findMany({
       where: whereClause,
@@ -72,12 +122,11 @@ export class AgentConversationService {
     }));
   }
 
-  async getAgentConversations(agentId: string): Promise<ConversationSummary[]> {
+  async getAgentConversations(filter: ConversationFilter): Promise<ConversationSummary[]> {
+    const whereClause = this.buildRoleFilter(filter, "ASSIGNED");
+
     const conversations = await this.prisma.conversation.findMany({
-      where: {
-        agentId,
-        status: "ASSIGNED",
-      },
+      where: whereClause,
       include: {
         customer: true,
         store: true,
@@ -97,6 +146,45 @@ export class AgentConversationService {
       status: c.status,
       storeId: c.storeId || undefined,
       storeName: c.store?.name,
+      lastMessage: c.messages[0]?.content || undefined,
+      lastMessageAt: c.messages[0]?.createdAt,
+      startedAt: c.startedAt,
+      unreadCount: 0,
+    }));
+  }
+
+  /**
+   * Obtiene todas las conversaciones (waiting + assigned) según el rol
+   * Útil para supervisores que quieren ver todo de un vistazo
+   */
+  async getAllConversations(filter: ConversationFilter): Promise<ConversationSummary[]> {
+    const whereClause = this.buildRoleFilter(filter);
+    whereClause.status = { in: ["WAITING", "ASSIGNED"] };
+
+    const conversations = await this.prisma.conversation.findMany({
+      where: whereClause,
+      include: {
+        customer: true,
+        store: true,
+        agent: true,
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return conversations.map((c) => ({
+      id: c.id,
+      customerId: c.customerId,
+      customerName: c.customer.name || undefined,
+      customerWaId: c.customer.waId,
+      status: c.status,
+      storeId: c.storeId || undefined,
+      storeName: c.store?.name,
+      agentId: c.agentId || undefined,
+      agentName: c.agent?.name,
       lastMessage: c.messages[0]?.content || undefined,
       lastMessageAt: c.messages[0]?.createdAt,
       startedAt: c.startedAt,

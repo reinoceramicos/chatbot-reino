@@ -1,5 +1,5 @@
-import { PrismaClient, AgentStatus as PrismaAgentStatus } from "@prisma/client";
-import { Agent, AgentStatus } from "../../domain/entities/agent.entity";
+import { PrismaClient, AgentStatus as PrismaAgentStatus, AgentRole as PrismaAgentRole } from "@prisma/client";
+import { Agent, AgentStatus, AgentRole } from "../../domain/entities/agent.entity";
 import {
   AgentRepository,
   CreateAgentData,
@@ -13,6 +13,8 @@ export class PrismaAgentRepository implements AgentRepository {
     return new Agent({
       id: data.id,
       storeId: data.storeId,
+      zoneId: data.zoneId,
+      role: data.role as AgentRole,
       name: data.name,
       waId: data.waId,
       email: data.email,
@@ -63,6 +65,22 @@ export class PrismaAgentRepository implements AgentRepository {
       .filter((a) => a.activeConversations < a.maxConversations);
   }
 
+  async findByZoneId(zoneId: string): Promise<Agent[]> {
+    const agents = await this.prisma.agent.findMany({
+      where: { zoneId },
+    });
+
+    return agents.map((a) => this.mapToEntity(a));
+  }
+
+  async findByRole(role: AgentRole): Promise<Agent[]> {
+    const agents = await this.prisma.agent.findMany({
+      where: { role: role as PrismaAgentRole },
+    });
+
+    return agents.map((a) => this.mapToEntity(a));
+  }
+
   async findAll(): Promise<Agent[]> {
     const agents = await this.prisma.agent.findMany();
     return agents.map((a) => this.mapToEntity(a));
@@ -72,6 +90,8 @@ export class PrismaAgentRepository implements AgentRepository {
     const created = await this.prisma.agent.create({
       data: {
         storeId: data.storeId,
+        zoneId: data.zoneId,
+        role: data.role as PrismaAgentRole,
         name: data.name,
         waId: data.waId,
         email: data.email,
@@ -90,6 +110,8 @@ export class PrismaAgentRepository implements AgentRepository {
       where: { id },
       data: {
         storeId: data.storeId,
+        zoneId: data.zoneId,
+        role: data.role as PrismaAgentRole | undefined,
         name: data.name,
         waId: data.waId,
         email: data.email,

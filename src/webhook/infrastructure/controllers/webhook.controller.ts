@@ -80,8 +80,10 @@ export const receiveMessage = async (req: Request, res: Response) => {
       try {
         // Extraer interactiveReplyId de respuestas interactivas
         const interactive = message.content.interactive;
-        const interactiveReplyId = interactive?.buttonReply?.id || interactive?.listReply?.id;
-        const interactiveReplyTitle = interactive?.buttonReply?.title || interactive?.listReply?.title;
+        const interactiveReplyId =
+          interactive?.buttonReply?.id || interactive?.listReply?.id;
+        const interactiveReplyTitle =
+          interactive?.buttonReply?.title || interactive?.listReply?.title;
 
         // Preparar datos para el bot
         const messageData: IncomingMessageData = {
@@ -125,8 +127,9 @@ export const receiveMessage = async (req: Request, res: Response) => {
               message.phoneNumberId
             );
             await messagingAdapter.send(interactiveMsg);
-            sentContent = botResponse.interactiveMessage.content.interactive?.body ||
-                          botResponse.interactiveMessage.content.text?.body;
+            sentContent =
+              botResponse.interactiveMessage.content.interactive?.body ||
+              botResponse.interactiveMessage.content.text?.body;
 
             log("BOT_SENT_INTERACTIVE", {
               to: normalizedTo,

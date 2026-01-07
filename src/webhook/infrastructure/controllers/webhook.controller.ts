@@ -6,6 +6,7 @@ import { envConfig } from "../../../shared/config/env.config";
 // Servicios de mensajeria
 import { SendTextUseCase } from "../../../messaging/application/use-cases/send-text.use-case";
 import { WhatsAppCloudAdapter } from "../../../messaging/infrastructure/adapters/whatsapp-cloud.adapter";
+import { Message } from "../../../messaging/domain/entities/message.entity";
 
 // Chatbot
 import {
@@ -77,6 +78,13 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     for (const message of messages) {
       try {
+        // Extraer interactiveReplyId de respuestas interactivas
+        const interactive = message.content.interactive;
+        const interactiveReplyId =
+          interactive?.buttonReply?.id || interactive?.listReply?.id;
+        const interactiveReplyTitle =
+          interactive?.buttonReply?.title || interactive?.listReply?.title;
+
         // Preparar datos para el bot
         const messageData: IncomingMessageData = {
           waId: message.sender.from,
@@ -85,10 +93,13 @@ export const receiveMessage = async (req: Request, res: Response) => {
           messageType: message.type,
           content: message.content.text,
           mediaId: message.content.media?.id,
+          interactiveReplyId,
+          interactiveReplyTitle,
           metadata: {
             location: message.content.location,
             contacts: message.content.contacts,
             interactive: message.content.interactive,
+            interactiveType: interactive?.type,
           },
         };
 
@@ -102,32 +113,52 @@ export const receiveMessage = async (req: Request, res: Response) => {
         });
 
         // Si el bot debe responder, enviar mensaje
-        if (
-          botResponse.shouldRespond &&
-          botResponse.message &&
-          message.phoneNumberId
-        ) {
+        if (botResponse.shouldRespond && message.phoneNumberId) {
           const normalizedTo = normalizePhoneNumber(message.sender.from);
+          let sentContent: string | undefined;
 
-          await sendTextUseCase.execute({
-            to: normalizedTo,
-            body: botResponse.message,
-            phoneNumberId: message.phoneNumberId,
-          });
+          // Enviar mensaje interactivo o de texto
+          if (botResponse.interactiveMessage) {
+            // Clonar el mensaje con el destinatario normalizado y phoneNumberId
+            const interactiveMsg = new Message(
+              normalizedTo,
+              botResponse.interactiveMessage.type,
+              botResponse.interactiveMessage.content,
+              message.phoneNumberId
+            );
+            await messagingAdapter.send(interactiveMsg);
+            sentContent =
+              botResponse.interactiveMessage.content.interactive?.body ||
+              botResponse.interactiveMessage.content.text?.body;
+
+            log("BOT_SENT_INTERACTIVE", {
+              to: normalizedTo,
+              type: botResponse.interactiveMessage.type,
+            });
+          } else if (botResponse.message) {
+            await sendTextUseCase.execute({
+              to: normalizedTo,
+              body: botResponse.message,
+              phoneNumberId: message.phoneNumberId,
+            });
+            sentContent = botResponse.message;
+
+            log("BOT_SENT_MESSAGE", {
+              to: normalizedTo,
+              message: botResponse.message,
+            });
+          }
 
           // Guardar mensaje saliente
-          await botService.saveOutgoingMessage(
-            botResponse.conversationId,
-            botResponse.customerId,
-            botResponse.message
-          );
+          if (sentContent) {
+            await botService.saveOutgoingMessage(
+              botResponse.conversationId,
+              botResponse.customerId,
+              sentContent
+            );
+          }
 
-          log("BOT_SENT_MESSAGE", {
-            to: normalizedTo,
-            message: botResponse.message,
-          });
-
-          // Si debe transferir a agente, notificar (TODO: implementar en Fase 4)
+          // Si debe transferir a agente, notificar
           if (botResponse.transferToAgent) {
             log("TRANSFER_REQUESTED", {
               conversationId: botResponse.conversationId,

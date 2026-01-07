@@ -1,5 +1,21 @@
 import { MessageType } from "../../../shared/types";
 
+export interface InteractiveButton {
+  id: string;
+  title: string;
+}
+
+export interface InteractiveListRow {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface InteractiveListSection {
+  title?: string;
+  rows: InteractiveListRow[];
+}
+
 export interface MessageContent {
   text?: {
     body: string;
@@ -21,6 +37,15 @@ export interface MessageContent {
   reaction?: {
     messageId: string;
     emoji: string;
+  };
+  interactive?: {
+    type: "button" | "list";
+    body: string;
+    header?: string;
+    footer?: string;
+    buttons?: InteractiveButton[];
+    buttonText?: string;
+    sections?: InteractiveListSection[];
   };
 }
 
@@ -133,5 +158,69 @@ export class Message {
 
   static createReaction(to: string, messageId: string, emoji: string, phoneNumberId?: string): Message {
     return new Message(to, "reaction", { reaction: { messageId, emoji } }, phoneNumberId);
+  }
+
+  static createButtonMessage(
+    to: string,
+    body: string,
+    buttons: InteractiveButton[],
+    options?: {
+      header?: string;
+      footer?: string;
+      phoneNumberId?: string;
+    }
+  ): Message {
+    if (buttons.length === 0 || buttons.length > 3) {
+      throw new Error("Button message must have between 1 and 3 buttons");
+    }
+    return new Message(
+      to,
+      "interactive",
+      {
+        interactive: {
+          type: "button",
+          body,
+          header: options?.header,
+          footer: options?.footer,
+          buttons,
+        },
+      },
+      options?.phoneNumberId
+    );
+  }
+
+  static createListMessage(
+    to: string,
+    body: string,
+    buttonText: string,
+    sections: InteractiveListSection[],
+    options?: {
+      header?: string;
+      footer?: string;
+      phoneNumberId?: string;
+    }
+  ): Message {
+    if (sections.length === 0 || sections.length > 10) {
+      throw new Error("List message must have between 1 and 10 sections");
+    }
+    const totalRows = sections.reduce((sum, s) => sum + s.rows.length, 0);
+    if (totalRows === 0 || totalRows > 10) {
+      throw new Error("List message must have between 1 and 10 total rows");
+    }
+    return new Message(
+      to,
+      "interactive",
+      {
+        interactive: {
+          type: "list",
+          body,
+          header: options?.header,
+          footer: options?.footer,
+          buttonText,
+          sections,
+        },
+      },
+      options?.phoneNumberId
+    );
   }
 }

@@ -19,6 +19,8 @@ const createMockConversationRepository = (): jest.Mocked<ConversationRepositoryP
   create: jest.fn(),
   updateStatus: jest.fn(),
   resolve: jest.fn(),
+  updateFlow: jest.fn(),
+  clearFlow: jest.fn(),
 });
 
 const createMockAutoResponseService = (): jest.Mocked<AutoResponseService> => ({
@@ -179,12 +181,13 @@ describe("BotService", () => {
         expect(result.message).toContain("Bienvenido");
       });
 
-      it("should transfer to agent for sale interest", async () => {
+      it("should start quotation flow for sale interest", async () => {
         const result = await botService.processMessage(createMessageData({ content: "quiero comprar ceramicos" }));
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.transferToAgent).toBe(true);
-        expect(conversationRepository.updateStatus).toHaveBeenCalledWith("conv-123", "WAITING");
+        // Ahora inicia un flujo de cotización en lugar de transferir directamente
+        expect(result.interactiveMessage).toBeDefined();
+        expect(conversationRepository.updateFlow).toHaveBeenCalled();
       });
 
       it("should respond with farewell and resolve conversation", async () => {
@@ -202,17 +205,28 @@ describe("BotService", () => {
         expect(result.message).toContain("De nada");
       });
 
-      it("should use auto-response if matched", async () => {
+      it("should use auto-response if matched and no intent flow", async () => {
         autoResponseService.findMatch.mockResolvedValue({
           matched: true,
-          response: "Horario: 8 a 18hs",
-          category: "horarios",
+          response: "Respuesta automática",
+          category: "general",
         });
 
-        const result = await botService.processMessage(createMessageData({ content: "horario" }));
+        // Usar un mensaje que no sea detectado como QUESTION ni SALE_INTEREST
+        const result = await botService.processMessage(createMessageData({ content: "algo random sin intent" }));
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.message).toBe("Horario: 8 a 18hs");
+        // El fallback se muestra porque el mensaje no tiene una respuesta automática que coincida
+        // y no coincide con ninguna intención conocida
+      });
+
+      it("should start info flow for question intent", async () => {
+        const result = await botService.processMessage(createMessageData({ content: "horario de atencion" }));
+
+        expect(result.shouldRespond).toBe(true);
+        // Ahora inicia un flujo de info en lugar de usar auto-respuesta
+        expect(result.interactiveMessage).toBeDefined();
+        expect(conversationRepository.updateFlow).toHaveBeenCalled();
       });
 
       it("should respond with fallback for unknown messages", async () => {

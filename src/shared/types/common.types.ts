@@ -7,7 +7,8 @@ export type MessageType =
   | "sticker"
   | "location"
   | "contacts"
-  | "reaction";
+  | "reaction"
+  | "interactive";
 
 export interface ApiResponse<T = any> {
   success: boolean;

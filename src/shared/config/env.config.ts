@@ -8,4 +8,8 @@ export const envConfig = {
   server: {
     port: process.env.PORT || 3000,
   },
+  jwt: {
+    secret: process.env.JWT_SECRET || "reino-ceramicos-secret-change-in-production",
+    expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+  },
 };

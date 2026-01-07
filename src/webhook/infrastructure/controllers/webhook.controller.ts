@@ -78,6 +78,11 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     for (const message of messages) {
       try {
+        // Extraer interactiveReplyId de respuestas interactivas
+        const interactive = message.content.interactive;
+        const interactiveReplyId = interactive?.buttonReply?.id || interactive?.listReply?.id;
+        const interactiveReplyTitle = interactive?.buttonReply?.title || interactive?.listReply?.title;
+
         // Preparar datos para el bot
         const messageData: IncomingMessageData = {
           waId: message.sender.from,
@@ -86,10 +91,13 @@ export const receiveMessage = async (req: Request, res: Response) => {
           messageType: message.type,
           content: message.content.text,
           mediaId: message.content.media?.id,
+          interactiveReplyId,
+          interactiveReplyTitle,
           metadata: {
             location: message.content.location,
             contacts: message.content.contacts,
             interactive: message.content.interactive,
+            interactiveType: interactive?.type,
           },
         };
 

@@ -104,13 +104,23 @@ export class BotService {
 
     if (data.interactiveReplyId) {
       input = data.interactiveReplyId;
+      // Determinar tipo de interacción desde metadata
+      const interactiveType = data.metadata?.interactiveType || data.metadata?.interactive?.type;
       inputType = data.messageType === "interactive"
-        ? (data.metadata?.interactiveType === "list_reply" ? "list_reply" : "button_reply")
+        ? (interactiveType === "list_reply" ? "list_reply" : "button_reply")
         : "button_reply";
     } else {
       input = data.content || "";
       inputType = "text";
     }
+
+    console.log("[FLOW_DEBUG]", {
+      flowType: conversation.flowType,
+      flowStep: conversation.flowStep,
+      input,
+      inputType,
+      interactiveReplyId: data.interactiveReplyId,
+    });
 
     // Verificar si es comando de cancelación
     if (this.flowManager.isCancelCommand(input)) {
@@ -240,8 +250,13 @@ export class BotService {
       return this.startFlowForIntent("quotation", data.waId, conversation, baseResponse);
     }
 
-    // Si es pregunta (QUESTION), iniciar flujo de información
+    // Si es pregunta (QUESTION), responder directamente o mostrar menú
     if (intent.intent === "QUESTION") {
+      // Si detectamos un tema específico, responder directamente sin menú
+      if (intent.questionTopic) {
+        return this.respondToQuestionTopic(intent.questionTopic, data.waId, conversation, baseResponse);
+      }
+      // Si no hay tema específico, mostrar el menú de opciones
       return this.startFlowForIntent("info", data.waId, conversation, baseResponse);
     }
 
@@ -345,6 +360,95 @@ export class BotService {
       shouldRespond: true,
       interactiveMessage: flowResult.message,
     };
+  }
+
+  /**
+   * Responde directamente a una pregunta con tema específico sin mostrar menú
+   */
+  private async respondToQuestionTopic(
+    topic: string,
+    waId: string,
+    conversation: Conversation,
+    baseResponse: { conversationId: string; customerId: string }
+  ): Promise<BotResponse> {
+    const responses: Record<string, string> = {
+      horarios: `🕐 *Horarios de atención*
+
+📅 Lunes a Viernes: 8:00 a 18:00 hs
+📅 Sábados: 8:00 a 13:00 hs
+📅 Domingos y feriados: Cerrado
+
+¡Te esperamos!`,
+
+      ubicacion: `📍 *Ubicación*
+
+Dirección: Av. Ejemplo 1234, Ciudad
+(A 2 cuadras de la estación de tren)
+
+🚗 Estacionamiento disponible
+🚌 Líneas de colectivo: 45, 67, 123
+
+📌 Google Maps: [Link a ubicación]`,
+
+      contacto: `📞 *Contacto*
+
+📱 WhatsApp: +54 9 11 1234-5678
+☎️ Teléfono: (011) 1234-5678
+📧 Email: ventas@reinoceramicos.com
+
+🌐 Redes sociales:
+• Instagram: @reinoceramicos
+• Facebook: /reinoceramicos`,
+
+      envios: `🚚 *Envíos*
+
+✅ Envíos a todo el país
+✅ Entregas en CABA y GBA en 24-48hs
+✅ Interior: 3-5 días hábiles
+
+💰 Costo de envío:
+• CABA: Consultar
+• GBA: Consultar según zona
+• Interior: A cargo del comprador
+
+📦 Retiro en local: Sin cargo`,
+
+      pagos: `💳 *Formas de pago*
+
+✅ Efectivo
+✅ Transferencia bancaria
+✅ Mercado Pago
+✅ Tarjetas de débito
+✅ Tarjetas de crédito (hasta 12 cuotas)
+
+📌 Consultar promociones vigentes con tarjetas`,
+
+      garantia: `🛡️ *Garantía*
+
+✅ Garantía de fábrica en todos los productos
+✅ 30 días para cambios por defectos
+✅ Productos sellados y en perfecto estado
+
+📋 Requisitos para cambios:
+• Presentar ticket/factura
+• Producto sin uso
+• Embalaje original
+
+❓ Consultas: ventas@reinoceramicos.com`,
+    };
+
+    const response = responses[topic];
+
+    if (response) {
+      return {
+        ...baseResponse,
+        shouldRespond: true,
+        message: response,
+      };
+    }
+
+    // Si el topic no está mapeado, iniciar el flujo de info con menú
+    return this.startFlowForIntent("info", waId, conversation, baseResponse);
   }
 
   async saveOutgoingMessage(

@@ -14,6 +14,8 @@ export interface IntentResult {
   confidence: number;
   keywords: string[];
   isNegated?: boolean;
+  /** Para QUESTION, indica el tema específico detectado (horarios, ubicacion, etc.) */
+  questionTopic?: string;
 }
 
 // Palabras clave para cada intención (expandidas con sinónimos argentinos)
@@ -37,7 +39,9 @@ const INTENT_KEYWORDS: Record<Intent, string[]> = {
     "envio", "envios", "pago", "pagos", "abierto", "atienden", "trabajan",
     // Nuevas
     "hacen", "tienen", "hay", "aceptan", "tarjeta", "efectivo",
-    "cuotas", "transferencia", "mercadopago", "debito", "credito"
+    "cuotas", "transferencia", "mercadopago", "debito", "credito",
+    // Preguntas de tiempo/hora
+    "a que hora", "que hora", "hasta que hora", "desde que hora"
   ],
   FAREWELL: [
     "chau", "adios", "hasta luego", "nos vemos", "bye", "gracias por todo",
@@ -65,6 +69,37 @@ const INTENT_WEIGHTS: Partial<Record<Intent, number>> = {
   QUESTION: 0.25,
   FAREWELL: 0.3,
   THANKS: 0.3,
+};
+
+// Mapeo de palabras clave a temas específicos de QUESTION
+// El orden importa: se detecta el primero que coincida
+const QUESTION_TOPIC_KEYWORDS: Record<string, string[]> = {
+  horarios: [
+    "horario", "horarios", "hora", "horas", "atienden", "abren", "cierran",
+    "abierto", "cerrado", "trabajan", "a que hora", "que hora", "hasta que hora",
+    "desde que hora", "puedo ir", "puedo pasar", "estan abiertos"
+  ],
+  ubicacion: [
+    "ubicacion", "direccion", "donde quedan", "donde estan", "como llego",
+    "llegar", "direcciones", "donde queda", "donde esta", "como voy", "quedan"
+  ],
+  contacto: [
+    "telefono", "telefonos", "mail", "email", "contacto", "contactar",
+    "llamar", "redes", "instagram", "facebook", "numero", "celular", "whatsapp"
+  ],
+  envios: [
+    "envio", "envios", "envian", "despacho", "delivery", "mandan",
+    "llega", "demora", "hacen envios", "envian a", "llegan"
+  ],
+  pagos: [
+    "pago", "pagos", "pagar", "tarjeta", "tarjetas", "efectivo",
+    "transferencia", "mercadopago", "cuotas", "debito", "credito",
+    "financiacion", "formas de pago", "medios de pago", "aceptan"
+  ],
+  garantia: [
+    "garantia", "garantias", "cambio", "cambios", "devolucion",
+    "devoluciones", "reclamo", "devolver", "cambiar"
+  ],
 };
 
 export class IntentDetectorService {
@@ -122,12 +157,34 @@ export class IntentDetectorService {
     // Calcular confianza normalizada (0-1)
     const confidence = bestScore > 0 ? Math.min(bestScore, 1) : 0;
 
+    // Si es QUESTION, detectar el tema específico
+    let questionTopic: string | undefined;
+    if (bestIntent === "QUESTION") {
+      questionTopic = this.detectQuestionTopic(normalizedMessage, enhancedMessage);
+    }
+
     return {
       intent: bestIntent,
       confidence,
       keywords: foundKeywords,
       isNegated,
+      questionTopic,
     };
+  }
+
+  /**
+   * Detecta el tema específico de una pregunta
+   */
+  private detectQuestionTopic(normalizedMessage: string, enhancedMessage: string): string | undefined {
+    for (const [topic, keywords] of Object.entries(QUESTION_TOPIC_KEYWORDS)) {
+      const hasMatch = keywords.some(
+        (kw) => normalizedMessage.includes(kw) || enhancedMessage.includes(kw)
+      );
+      if (hasMatch) {
+        return topic;
+      }
+    }
+    return undefined;
   }
 
   /**

@@ -9,8 +9,19 @@ import { SendTextUseCase } from "../../../messaging/application/use-cases/send-t
 import { WhatsAppCloudAdapter } from "../../../messaging/infrastructure/adapters/whatsapp-cloud.adapter";
 import { envConfig } from "../../../shared/config/env.config";
 
+// WebSocket
+import { getSocketService } from "../../../shared/infrastructure/websocket/socket.service";
+
 const messagingAdapter = new WhatsAppCloudAdapter();
 const sendTextUseCase = new SendTextUseCase(messagingAdapter);
+
+// Normaliza numeros argentinos: 549XXXXXXXXXX -> 54XXXXXXXXXX
+const normalizePhoneNumber = (phone: string): string => {
+  if (phone && phone.startsWith("549") && phone.length === 13) {
+    return "54" + phone.slice(3);
+  }
+  return phone;
+};
 
 export class AgentController {
   constructor(
@@ -239,6 +250,16 @@ export class AgentController {
         return;
       }
 
+      // Emitir evento de asignación por WebSocket
+      const socketService = getSocketService();
+      if (socketService) {
+        socketService.emitConversationAssigned({
+          conversationId,
+          agentId: req.agent.agentId,
+          storeId: req.agent.storeId,
+        });
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: "Error interno del servidor" });
@@ -262,6 +283,15 @@ export class AgentController {
       if (!success) {
         res.status(400).json({ error: "No se pudo resolver la conversación" });
         return;
+      }
+
+      // Emitir evento de resolución por WebSocket
+      const socketSvc = getSocketService();
+      if (socketSvc) {
+        socketSvc.emitConversationResolved({
+          conversationId,
+          storeId: req.agent.storeId,
+        });
       }
 
       res.json({ success: true });
@@ -326,7 +356,7 @@ export class AgentController {
 
       // Enviar mensaje por WhatsApp
       const result = await sendTextUseCase.execute({
-        to: conversation.customerWaId,
+        to: normalizePhoneNumber(conversation.customerWaId),
         body: message,
         phoneNumberId: envConfig.meta.phoneNumberId,
       });
@@ -338,6 +368,22 @@ export class AgentController {
         message,
         result.messageId
       );
+
+      // Emitir mensaje por WebSocket
+      const socketService = getSocketService();
+      if (socketService) {
+        socketService.emitAgentMessage({
+          conversationId,
+          message: {
+            id: result.messageId,
+            content: message,
+            type: "TEXT",
+            direction: "OUTBOUND",
+            sentByAgentId: req.agent.agentId,
+            createdAt: new Date(),
+          },
+        });
+      }
 
       res.json({
         success: true,

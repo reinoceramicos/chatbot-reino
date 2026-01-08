@@ -7,7 +7,12 @@
       "Bash(npx prisma generate:*)",
       "Bash(npx prisma migrate:*)",
       "Bash(npx ts-node:*)",
-      "Bash(mkdir -p:*)"
+      "Bash(mkdir -p:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(PGPASSWORD=3214 psql:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZ2VudElkIjoiY21rMWtnbXFiMDAxa2E4dHhsaHVocXE0cCIsImVtYWlsIjoidmVuZGVkb3IxLnIxQHJlaW5vLmNvbSIsInJvbGUiOiJTRUxMRVIiLCJzdG9yZUlkIjoiY21rMWtnbWpzMDAwb2E4dHgwY2k3MzE5ayIsInpvbmVJZCI6bnVsbCwiaWF0IjoxNzY3ODc1NDAxLCJleHAiOjE3Njc5NjE4MDF9.atYCN182t7jnGz7JBY7cv1KTYOIxPs_4g3r-RoMZgxA\")",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -38,6 +38,7 @@ export interface MessageSummary {
   direction: string;
   sentByBot: boolean;
   sentByAgentId?: string;
+  mediaUrl?: string;
   createdAt: Date;
 }
 
@@ -200,7 +201,6 @@ export class AgentConversationService {
         store: true,
         messages: {
           orderBy: { createdAt: "asc" },
-          take: 100, // Últimos 100 mensajes
         },
       },
     });
@@ -228,6 +228,7 @@ export class AgentConversationService {
         direction: m.direction,
         sentByBot: m.sentByBot,
         sentByAgentId: m.sentByAgentId || undefined,
+        mediaUrl: m.mediaUrl || undefined,
         createdAt: m.createdAt,
       })),
     };

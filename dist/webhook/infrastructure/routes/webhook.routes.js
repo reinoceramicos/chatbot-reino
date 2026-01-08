@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.webhookRouter = void 0;
+const express_1 = require("express");
+const webhook_controller_1 = require("../controllers/webhook.controller");
+const webhookRouter = (0, express_1.Router)();
+exports.webhookRouter = webhookRouter;
+webhookRouter.head("/", (_req, res) => res.sendStatus(200));
+webhookRouter.get("/", webhook_controller_1.verifyToken);
+webhookRouter.post("/", webhook_controller_1.receiveMessage);

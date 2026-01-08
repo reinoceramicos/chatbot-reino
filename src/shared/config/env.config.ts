@@ -12,4 +12,10 @@ export const envConfig = {
     secret: process.env.JWT_SECRET || "reino-ceramicos-secret-change-in-production",
     expiresIn: process.env.JWT_EXPIRES_IN || "24h",
   },
+  gcs: {
+    credentialsPath: process.env.GOOGLE_APPLICATION_CREDENTIALS || "",
+    projectId: process.env.GCS_PROJECT_ID || "",
+    publicBucket: process.env.GCS_PUBLIC_BUCKET_NAME || "",
+    privateBucket: process.env.GCS_PRIVATE_BUCKET_NAME || "",
+  },
 };

@@ -150,7 +150,7 @@ steps.set("select_zone", {
   nextStep: "select_store",
 });
 
-// Step 3e: Seleccionar tienda de la zona (se genera dinámicamente)
+// Step 3e: Seleccionar tienda de la zona (hardcodeado temporalmente)
 steps.set("select_store", {
   id: "select_store",
   prompt: {
@@ -161,8 +161,9 @@ steps.set("select_store", {
       {
         title: "Reinos disponibles",
         rows: [
-          // Las tiendas se generan dinámicamente en el bot.service basado en la zona seleccionada
-          { id: "store_placeholder", title: "Cargando tiendas...", description: "" },
+          { id: "REINO_1", title: "Reino 1 - Belgrano", description: "Av. Cabildo 2040, CABA" },
+          { id: "REINO_2", title: "Reino 2 - Palermo", description: "Av. Santa Fe 4850, CABA" },
+          { id: "REINO_5", title: "Reino 5 - Villa Urquiza", description: "Av. Triunvirato 4700, CABA" },
         ],
       },
     ],

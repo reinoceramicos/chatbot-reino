@@ -1,3 +1,4 @@
+import { PrismaClient } from "@prisma/client";
 import { Customer } from "../../domain/entities/customer.entity";
 import { Conversation, FlowType } from "../../domain/entities/conversation.entity";
 import { CustomerRepositoryPort } from "../../domain/ports/customer.repository.port";
@@ -50,6 +51,7 @@ export class BotService {
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly autoResponseService: AutoResponseService,
     private readonly messageRepository: PrismaMessageRepository,
+    private readonly prisma?: PrismaClient,
     flowManager?: FlowManagerService
   ) {
     this.intentDetector = new IntentDetectorService();
@@ -156,6 +158,17 @@ export class BotService {
       await this.conversationRepository.clearFlow(conversation.id!);
 
       if (result.transferToAgent) {
+        // Guardar storeId si existe en flowData
+        const storeCode = result.newFlowData?.selectedStoreCode;
+        if (storeCode && this.prisma) {
+          const store = await this.prisma.store.findFirst({
+            where: { code: storeCode },
+          });
+          if (store) {
+            await this.conversationRepository.updateStoreId(conversation.id!, store.id);
+          }
+        }
+
         await this.conversationRepository.updateStatus(conversation.id!, "WAITING");
         return {
           ...baseResponse,

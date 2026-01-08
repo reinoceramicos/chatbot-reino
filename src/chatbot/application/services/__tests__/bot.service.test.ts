@@ -18,6 +18,7 @@ const createMockConversationRepository = (): jest.Mocked<ConversationRepositoryP
   findActiveByCustomerId: jest.fn(),
   create: jest.fn(),
   updateStatus: jest.fn(),
+  updateStoreId: jest.fn(),
   resolve: jest.fn(),
   updateFlow: jest.fn(),
   clearFlow: jest.fn(),

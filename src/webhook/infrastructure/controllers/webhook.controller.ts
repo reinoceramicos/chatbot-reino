@@ -20,6 +20,12 @@ import { PrismaAutoResponseRepository } from "../../../chatbot/infrastructure/re
 import { PrismaMessageRepository } from "../../../chatbot/infrastructure/repositories/prisma-message.repository";
 import { prisma } from "../../../shared/infrastructure/database/prisma.service";
 
+// WebSocket
+import { getSocketService } from "../../../shared/infrastructure/websocket/socket.service";
+
+// Media processing
+import { getMediaProcessorService } from "../../../messaging/application/services/media-processor.service";
+
 // Inicializar servicios
 const webhookService = new WebhookService();
 const messagingAdapter = new WhatsAppCloudAdapter();
@@ -35,7 +41,8 @@ const botService = new BotService(
   customerRepository,
   conversationRepository,
   autoResponseService,
-  messageRepository
+  messageRepository,
+  prisma
 );
 
 // Normaliza numeros argentinos: 549XXXXXXXXXX -> 54XXXXXXXXXX
@@ -106,11 +113,77 @@ export const receiveMessage = async (req: Request, res: Response) => {
         // Procesar mensaje con el bot
         const botResponse = await botService.processMessage(messageData);
 
+        // Procesar media si existe (imagen, video, audio, documento)
+        const mediaTypes = ["image", "video", "audio", "document", "sticker"];
+        if (mediaTypes.includes(message.type) && message.content.media?.id) {
+          try {
+            const mediaProcessor = getMediaProcessorService();
+            const processedMedia = await mediaProcessor.processWhatsAppMedia(
+              message.content.media.id,
+              message.type,
+              botResponse.conversationId
+            );
+
+            // Actualizar el mensaje en la DB con la URL del media
+            await prisma.message.updateMany({
+              where: { waMessageId: message.id },
+              data: {
+                mediaUrl: processedMedia.publicUrl,
+                metadata: {
+                  ...messageData.metadata,
+                  originalMediaId: processedMedia.originalMediaId,
+                  mimeType: processedMedia.mimeType,
+                  fileSize: processedMedia.fileSize,
+                  storagePath: processedMedia.storagePath,
+                },
+              },
+            });
+
+            log("MEDIA_PROCESSED", {
+              mediaId: message.content.media.id,
+              type: message.type,
+              url: processedMedia.publicUrl,
+            });
+          } catch (mediaErr: any) {
+            log("MEDIA_PROCESSING_ERROR", {
+              mediaId: message.content.media.id,
+              error: mediaErr.message,
+            });
+          }
+        }
+
         log("BOT_RESPONSE", {
           shouldRespond: botResponse.shouldRespond,
           transferToAgent: botResponse.transferToAgent,
           conversationId: botResponse.conversationId,
         });
+
+        // Emitir mensaje por WebSocket a los agentes
+        const socketService = getSocketService();
+        if (socketService) {
+          // Obtener storeId de la conversación para routing
+          const conversation = await prisma.conversation.findUnique({
+            where: { id: botResponse.conversationId },
+            select: { storeId: true },
+          });
+
+          socketService.emitNewCustomerMessage({
+            conversationId: botResponse.conversationId,
+            storeId: conversation?.storeId || undefined,
+            message: {
+              id: message.id,
+              content: message.content.text,
+              type: message.type,
+              direction: "INBOUND",
+              createdAt: new Date(),
+            },
+            customer: {
+              id: botResponse.customerId,
+              name: message.sender.name,
+              waId: message.sender.from,
+            },
+          });
+        }
 
         // Si el bot debe responder, enviar mensaje
         if (botResponse.shouldRespond && message.phoneNumberId) {
@@ -158,12 +231,31 @@ export const receiveMessage = async (req: Request, res: Response) => {
             );
           }
 
-          // Si debe transferir a agente, notificar
+          // Si debe transferir a agente, notificar por WebSocket
           if (botResponse.transferToAgent) {
             log("TRANSFER_REQUESTED", {
               conversationId: botResponse.conversationId,
               customerId: botResponse.customerId,
             });
+
+            // Emitir nueva conversación en espera
+            const socketSvc = getSocketService();
+            if (socketSvc) {
+              const conv = await prisma.conversation.findUnique({
+                where: { id: botResponse.conversationId },
+                select: { storeId: true },
+              });
+
+              socketSvc.emitNewWaitingConversation({
+                conversationId: botResponse.conversationId,
+                storeId: conv?.storeId || undefined,
+                customer: {
+                  id: botResponse.customerId,
+                  name: message.sender.name,
+                  waId: message.sender.from,
+                },
+              });
+            }
           }
         }
       } catch (msgErr: any) {

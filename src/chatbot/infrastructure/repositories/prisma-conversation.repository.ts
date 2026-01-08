@@ -57,6 +57,15 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return this.mapToEntity(updated);
   }
 
+  async updateStoreId(id: string, storeId: string): Promise<Conversation> {
+    const updated = await this.prisma.conversation.update({
+      where: { id },
+      data: { storeId },
+    });
+
+    return this.mapToEntity(updated);
+  }
+
   async resolve(id: string): Promise<Conversation> {
     const updated = await this.prisma.conversation.update({
       where: { id },

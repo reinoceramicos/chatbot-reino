@@ -56,6 +56,11 @@ model Conversation {
   flowData      Json?     @map("flow_data")      // Datos recolectados en el flujo
   flowStartedAt DateTime? @map("flow_started_at") // Timestamp de inicio del flujo
 
+  // Campos para métricas
+  firstResponseAt DateTime? @map("first_response_at") // Primera respuesta del vendedor
+  resultedInSale  Boolean   @default(false) @map("resulted_in_sale")
+  saleAmount      Float?    @map("sale_amount")
+
   customer Customer  @relation(fields: [customerId], references: [id])
   agent    Agent?    @relation(fields: [agentId], references: [id])
   store    Store?    @relation(fields: [storeId], references: [id])
@@ -66,6 +71,8 @@ model Conversation {
   @@index([storeId])
   @@index([status])
   @@index([flowType])
+  @@index([startedAt])
+  @@index([resolvedAt])
   @@map("conversations")
 }
 

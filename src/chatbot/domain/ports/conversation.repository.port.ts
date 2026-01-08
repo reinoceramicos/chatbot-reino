@@ -12,6 +12,7 @@ export interface ConversationRepositoryPort {
   findById(id: string): Promise<Conversation | null>;
   create(conversation: Conversation): Promise<Conversation>;
   updateStatus(id: string, status: ConversationStatus, agentId?: string): Promise<Conversation>;
+  updateStoreId(id: string, storeId: string): Promise<Conversation>;
   resolve(id: string): Promise<Conversation>;
   // Métodos para flujos
   updateFlow(id: string, params: UpdateFlowParams): Promise<Conversation>;

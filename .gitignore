@@ -1,7 +1,7 @@
 
 node_modules
-.env
+.env*
 /src/generated/prisma
 
 # Credenciales
-credentials/
+credentials/hacelo

@@ -12,7 +12,9 @@
       "Bash(PGPASSWORD=3214 psql:*)",
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZ2VudElkIjoiY21rMWtnbXFiMDAxa2E4dHhsaHVocXE0cCIsImVtYWlsIjoidmVuZGVkb3IxLnIxQHJlaW5vLmNvbSIsInJvbGUiOiJTRUxMRVIiLCJzdG9yZUlkIjoiY21rMWtnbWpzMDAwb2E4dHgwY2k3MzE5ayIsInpvbmVJZCI6bnVsbCwiaWF0IjoxNzY3ODc1NDAxLCJleHAiOjE3Njc5NjE4MDF9.atYCN182t7jnGz7JBY7cv1KTYOIxPs_4g3r-RoMZgxA\")",
       "Bash(curl:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: remove .env from version control\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

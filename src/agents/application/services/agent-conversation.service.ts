@@ -36,6 +36,7 @@ export interface MessageSummary {
   content?: string;
   type: string;
   direction: string;
+  status?: string;
   sentByBot: boolean;
   sentByAgentId?: string;
   mediaUrl?: string;
@@ -251,6 +252,7 @@ export class AgentConversationService {
         content: m.content || undefined,
         type: m.type,
         direction: m.direction,
+        status: m.status || undefined,
         sentByBot: m.sentByBot,
         sentByAgentId: m.sentByAgentId || undefined,
         mediaUrl: m.mediaUrl || undefined,
@@ -375,6 +377,7 @@ export class AgentConversationService {
         waMessageId,
         direction: "OUTBOUND",
         type: "TEXT",
+        status: "SENT",
         content,
         sentByBot: false,
         sentByAgentId: agentId,

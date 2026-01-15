@@ -51,17 +51,17 @@ describe("Info Flow", () => {
       });
 
       it("should be a list type", () => {
-        expect(step.prompt.type).toBe("list");
+        expect(step.prompt!.type).toBe("list");
       });
 
       it("should have a prompt with sections", () => {
-        expect(step.prompt.body).toBeDefined();
-        expect(step.prompt.sections).toBeDefined();
-        expect(step.prompt.sections!.length).toBeGreaterThan(0);
+        expect(step.prompt!.body).toBeDefined();
+        expect(step.prompt!.sections).toBeDefined();
+        expect(step.prompt!.sections!.length).toBeGreaterThan(0);
       });
 
       it("should have info topics in sections", () => {
-        const section = step.prompt.sections![0];
+        const section = step.prompt!.sections![0];
         expect(section.rows).toBeDefined();
         expect(section.rows!.length).toBeGreaterThan(0);
       });
@@ -84,7 +84,7 @@ describe("Info Flow", () => {
       describe("available topics", () => {
         const getAllTopicIds = (): string[] => {
           const ids: string[] = [];
-          step.prompt.sections!.forEach((section) => {
+          step.prompt!.sections!.forEach((section) => {
             section.rows!.forEach((row) => {
               ids.push(row.id);
             });
@@ -126,11 +126,11 @@ describe("Info Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should contain schedule information", () => {
-        expect(step.prompt.body.toLowerCase()).toMatch(/horario|lunes|viernes|sabado/);
+        expect(step.prompt!.body.toLowerCase()).toMatch(/horario|lunes|viernes|sabado/);
       });
 
       it("should navigate to ask_more", () => {
@@ -146,11 +146,11 @@ describe("Info Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should contain location information", () => {
-        expect(step.prompt.body.toLowerCase()).toMatch(/direcci[oó]n|ubicaci[oó]n/);
+        expect(step.prompt!.body.toLowerCase()).toMatch(/direcci[oó]n|ubicaci[oó]n/);
       });
 
       it("should navigate to ask_more", () => {
@@ -166,11 +166,11 @@ describe("Info Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should contain shipping information", () => {
-        expect(step.prompt.body.toLowerCase()).toMatch(/env[ií]o|entrega/);
+        expect(step.prompt!.body.toLowerCase()).toMatch(/env[ií]o|entrega/);
       });
 
       it("should navigate to ask_more", () => {
@@ -186,11 +186,11 @@ describe("Info Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should contain payment information", () => {
-        expect(step.prompt.body.toLowerCase()).toMatch(/pago|efectivo|tarjeta|transferencia/);
+        expect(step.prompt!.body.toLowerCase()).toMatch(/pago|efectivo|tarjeta|transferencia/);
       });
 
       it("should navigate to ask_more", () => {
@@ -206,23 +206,23 @@ describe("Info Flow", () => {
       });
 
       it("should be a button type", () => {
-        expect(step.prompt.type).toBe("button");
+        expect(step.prompt!.type).toBe("button");
       });
 
       it("should have yes/no buttons", () => {
-        expect(step.prompt.buttons).toBeDefined();
-        expect(step.prompt.buttons!.length).toBeGreaterThanOrEqual(2);
+        expect(step.prompt!.buttons).toBeDefined();
+        expect(step.prompt!.buttons!.length).toBeGreaterThanOrEqual(2);
       });
 
       it("should have a 'yes' option", () => {
-        const hasYes = step.prompt.buttons!.some(
+        const hasYes = step.prompt!.buttons!.some(
           (b) => b.id.includes("yes") || b.title.toLowerCase().includes("sí")
         );
         expect(hasYes).toBe(true);
       });
 
       it("should have a 'no' option", () => {
-        const hasNo = step.prompt.buttons!.some(
+        const hasNo = step.prompt!.buttons!.some(
           (b) => b.id.includes("no") || b.title.toLowerCase().includes("no")
         );
         expect(hasNo).toBe(true);
@@ -255,26 +255,26 @@ describe("Info Flow", () => {
   describe("createMessageForStep", () => {
     const testWaId = "5491155556666";
 
-    it("should create list message for select_topic", () => {
+    it("should create list message for select_topic", async () => {
       const step = infoFlow.getStep("select_topic")!;
-      const message = infoFlow.createMessageForStep(step, testWaId);
+      const message = await infoFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("interactive");
       expect(message.to).toBe(testWaId);
       expect(message.content.interactive?.type).toBe("list");
     });
 
-    it("should create text message for show_horarios", () => {
+    it("should create text message for show_horarios", async () => {
       const step = infoFlow.getStep("show_horarios")!;
-      const message = infoFlow.createMessageForStep(step, testWaId);
+      const message = await infoFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("text");
       expect(message.to).toBe(testWaId);
     });
 
-    it("should create button message for ask_more", () => {
+    it("should create button message for ask_more", async () => {
       const step = infoFlow.getStep("ask_more")!;
-      const message = infoFlow.createMessageForStep(step, testWaId);
+      const message = await infoFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("interactive");
       expect(message.content.interactive?.type).toBe("button");

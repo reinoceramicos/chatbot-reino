@@ -117,22 +117,22 @@ describe("FlowManagerService", () => {
   });
 
   describe("startFlow", () => {
-    it("should start a registered flow", () => {
-      const result = flowManager.startFlow(testFlowType, testWaId);
+    it("should start a registered flow", async () => {
+      const result = await flowManager.startFlow(testFlowType, testWaId);
 
       expect(result).toBeDefined();
       expect(result?.newFlowStep).toBe("step1");
       expect(result?.message).toBeDefined();
     });
 
-    it("should return null for unregistered flow", () => {
-      const result = flowManager.startFlow(null, testWaId);
+    it("should return null for unregistered flow", async () => {
+      const result = await flowManager.startFlow(null, testWaId);
 
       expect(result).toBeNull();
     });
 
-    it("should return interactive message for button step", () => {
-      const result = flowManager.startFlow(testFlowType, testWaId);
+    it("should return interactive message for button step", async () => {
+      const result = await flowManager.startFlow(testFlowType, testWaId);
 
       expect(result?.message?.type).toBe("interactive");
       expect(result?.message?.content.interactive?.type).toBe("button");
@@ -205,7 +205,7 @@ describe("FlowManagerService", () => {
   });
 
   describe("processFlowInput", () => {
-    it("should process button reply and advance to next step", () => {
+    it("should process button reply and advance to next step", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -215,7 +215,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "opt1",
         "button_reply",
@@ -226,7 +226,7 @@ describe("FlowManagerService", () => {
       expect(result?.newFlowStep).toBe("step2");
     });
 
-    it("should process text input and advance to next step", () => {
+    it("should process text input and advance to next step", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -236,7 +236,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "valid text",
         "text",
@@ -247,7 +247,7 @@ describe("FlowManagerService", () => {
       expect(result?.newFlowStep).toBe("final");
     });
 
-    it("should return validation error for invalid input", () => {
+    it("should return validation error for invalid input", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -257,7 +257,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "ab", // Too short, validation requires >= 3
         "text",
@@ -269,7 +269,7 @@ describe("FlowManagerService", () => {
       expect(result?.message?.content.text?.body).toContain("at least 3");
     });
 
-    it("should mark flow as completed when reaching final step", () => {
+    it("should mark flow as completed when reaching final step", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -279,7 +279,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "anything",
         "text",
@@ -290,7 +290,7 @@ describe("FlowManagerService", () => {
       expect(result?.flowCompleted).toBe(true);
     });
 
-    it("should return null for unregistered flow type", () => {
+    it("should return null for unregistered flow type", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -300,7 +300,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "test",
         "text",
@@ -310,7 +310,7 @@ describe("FlowManagerService", () => {
       expect(result).toBeNull();
     });
 
-    it("should store input in flowData using saveAs", () => {
+    it("should store input in flowData using saveAs", async () => {
       const conversation = new Conversation({
         id: "conv-1",
         customerId: "cust-1",
@@ -320,7 +320,7 @@ describe("FlowManagerService", () => {
         flowStartedAt: new Date(),
       });
 
-      const result = flowManager.processFlowInput(
+      const result = await flowManager.processFlowInput(
         conversation,
         "opt1",
         "button_reply",

@@ -17,7 +17,9 @@ export interface FlowStepPrompt {
 
 export interface FlowStep {
   id: string;
-  prompt: FlowStepPrompt;
+  prompt?: FlowStepPrompt;
+  // Dynamic prompt function - called at runtime with flowData to generate prompt
+  dynamicPrompt?: (flowData: Record<string, any>) => Promise<FlowStepPrompt>;
   expectedInput: ExpectedInputType;
   validation?: (input: string) => boolean;
   errorMessage?: string;
@@ -64,9 +66,25 @@ export class Flow {
 
   /**
    * Crea el mensaje para un step del flujo
+   * Supports both static prompts and dynamic prompts (async)
    */
-  createMessageForStep(step: FlowStep, to: string, phoneNumberId?: string): Message {
-    const { prompt } = step;
+  async createMessageForStep(
+    step: FlowStep,
+    to: string,
+    phoneNumberId?: string,
+    flowData?: Record<string, any>
+  ): Promise<Message> {
+    // Get prompt - either static or dynamic
+    let prompt: FlowStepPrompt;
+
+    if (step.dynamicPrompt) {
+      prompt = await step.dynamicPrompt(flowData || {});
+    } else if (step.prompt) {
+      prompt = step.prompt;
+    } else {
+      // Fallback if no prompt defined
+      return Message.createText(to, "Error: Step sin prompt definido", false, phoneNumberId);
+    }
 
     if (prompt.type === "button" && prompt.buttons) {
       return Message.createButtonMessage(to, prompt.body, prompt.buttons, {

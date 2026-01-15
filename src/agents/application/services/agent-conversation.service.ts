@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { AgentRepository } from "../../domain/ports/agent.repository.port";
-import { AgentRole } from "../../domain/entities/agent.entity";
+import { Agent, AgentRole } from "../../domain/entities/agent.entity";
 
 export interface ConversationFilter {
   agentId: string;
@@ -219,6 +219,45 @@ export class AgentConversationService {
     }));
   }
 
+  /**
+   * Obtiene el historial de conversaciones resueltas según el rol
+   */
+  async getResolvedConversations(filter: ConversationFilter): Promise<ConversationSummary[]> {
+    const whereClause = this.buildRoleFilter(filter);
+    whereClause.status = "RESOLVED";
+
+    const conversations = await this.prisma.conversation.findMany({
+      where: whereClause,
+      include: {
+        customer: true,
+        store: true,
+        agent: true,
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+      orderBy: { resolvedAt: "desc" },
+      take: 50, // Limit to last 50 resolved conversations
+    });
+
+    return conversations.map((c) => ({
+      id: c.id,
+      customerId: c.customerId,
+      customerName: c.customer.name || undefined,
+      customerWaId: c.customer.waId,
+      status: c.status,
+      storeId: c.storeId || undefined,
+      storeName: c.store?.name,
+      agentId: c.agentId || undefined,
+      agentName: c.agent?.name,
+      lastMessage: c.messages[0]?.content || undefined,
+      lastMessageAt: c.messages[0]?.createdAt,
+      startedAt: c.startedAt,
+      unreadCount: 0,
+    }));
+  }
+
   async getConversationDetail(conversationId: string): Promise<ConversationDetail | null> {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -388,5 +427,71 @@ export class AgentConversationService {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+  }
+
+  /**
+   * Get agents available for transfer (excluding current agent)
+   */
+  async getAvailableAgentsForTransfer(
+    conversationId: string,
+    currentAgentId: string
+  ): Promise<{ id: string; name: string; activeConversations: number; maxConversations: number }[]> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || !conversation.storeId) {
+      return [];
+    }
+
+    // Get available agents in the same store
+    const agents = await this.agentRepository.findAvailableByStoreId(conversation.storeId);
+
+    // Filter out current agent and agents without id, then return simplified data
+    return agents
+      .filter((a): a is Agent & { id: string } => !!a.id && a.id !== currentAgentId)
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        activeConversations: a.activeConversations,
+        maxConversations: a.maxConversations,
+      }));
+  }
+
+  /**
+   * Transfer conversation to another agent
+   */
+  async transferToAgent(
+    conversationId: string,
+    fromAgentId: string,
+    toAgentId: string
+  ): Promise<boolean> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation || conversation.agentId !== fromAgentId) {
+      return false;
+    }
+
+    const targetAgent = await this.agentRepository.findById(toAgentId);
+    if (!targetAgent || !targetAgent.canAcceptConversation()) {
+      return false;
+    }
+
+    // Update conversation to new agent
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        agentId: toAgentId,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Decrement from source agent, increment for target agent
+    await this.agentRepository.decrementActiveConversations(fromAgentId);
+    await this.agentRepository.incrementActiveConversations(toAgentId);
+
+    return true;
   }
 }

@@ -189,6 +189,26 @@ export class AgentController {
     }
   }
 
+  async getResolvedConversations(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const conversations = await this.conversationService.getResolvedConversations({
+        agentId: req.agent.agentId,
+        role: req.agent.role,
+        storeId: req.agent.storeId,
+        zoneId: req.agent.zoneId,
+      });
+
+      res.json({ conversations });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
   async getAllConversations(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {
@@ -417,6 +437,70 @@ export class AgentController {
     } catch (error: any) {
       console.error("Error sending message:", error);
       res.status(500).json({ error: "Error al enviar el mensaje" });
+    }
+  }
+
+  async getAvailableAgentsForTransfer(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const agents = await this.conversationService.getAvailableAgentsForTransfer(
+        conversationId,
+        req.agent.agentId
+      );
+
+      res.json({ agents });
+    } catch (error: any) {
+      console.error("[getAvailableAgentsForTransfer] Error:", error.message, error.stack);
+      res.status(500).json({ error: "Error interno del servidor", details: error.message });
+    }
+  }
+
+  async transferToAgent(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+      const { targetAgentId } = req.body;
+
+      if (!targetAgentId) {
+        res.status(400).json({ error: "ID del agente destino requerido" });
+        return;
+      }
+
+      const success = await this.conversationService.transferToAgent(
+        conversationId,
+        req.agent.agentId,
+        targetAgentId
+      );
+
+      if (!success) {
+        res.status(400).json({ error: "No se pudo transferir la conversación" });
+        return;
+      }
+
+      // Emitir evento de transferencia por WebSocket
+      const socketService = getSocketService();
+      if (socketService) {
+        socketService.emitConversationTransferred({
+          conversationId,
+          fromAgentId: req.agent.agentId,
+          toAgentId: targetAgentId,
+          storeId: req.agent.storeId,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   }
 }

@@ -199,6 +199,24 @@ export class SocketService {
     this.io.to("agents").emit("conversation:resolved", data);
   }
 
+  // Emitir cuando una conversación es transferida a otro agente
+  emitConversationTransferred(data: {
+    conversationId: string;
+    fromAgentId: string;
+    toAgentId: string;
+    storeId?: string;
+  }): void {
+    // Notificar al agente que recibe la conversación
+    this.io.to(`agent:${data.toAgentId}`).emit("conversation:transferred", data);
+    // Notificar a la conversación específica
+    this.io.to(`conversation:${data.conversationId}`).emit("conversation:transferred", data);
+    // Notificar a la tienda
+    if (data.storeId) {
+      this.io.to(`store:${data.storeId}`).emit("conversation:transferred", data);
+    }
+    this.io.to("agents").emit("conversation:transferred", data);
+  }
+
   // Emitir actualización de estado de mensaje (enviado, entregado, leído)
   emitMessageStatusUpdate(data: {
     conversationId: string;

@@ -52,17 +52,17 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a list type", () => {
-        expect(step.prompt.type).toBe("list");
+        expect(step.prompt!.type).toBe("list");
       });
 
       it("should have a prompt with sections", () => {
-        expect(step.prompt.body).toBeDefined();
-        expect(step.prompt.sections).toBeDefined();
-        expect(step.prompt.sections!.length).toBeGreaterThan(0);
+        expect(step.prompt!.body).toBeDefined();
+        expect(step.prompt!.sections).toBeDefined();
+        expect(step.prompt!.sections!.length).toBeGreaterThan(0);
       });
 
       it("should have product categories in sections", () => {
-        const section = step.prompt.sections![0];
+        const section = step.prompt!.sections![0];
         expect(section.rows).toBeDefined();
         expect(section.rows!.length).toBeGreaterThan(0);
       });
@@ -76,7 +76,7 @@ describe("Quotation Flow", () => {
       });
 
       it("should have buttonText for the list", () => {
-        expect(step.prompt.buttonText).toBeDefined();
+        expect(step.prompt!.buttonText).toBeDefined();
       });
     });
 
@@ -88,7 +88,7 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should expect text input", () => {
@@ -108,7 +108,7 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should navigate to ask_location_method", () => {
@@ -124,15 +124,15 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a button type", () => {
-        expect(step.prompt.type).toBe("button");
+        expect(step.prompt!.type).toBe("button");
       });
 
       it("should have GPS and zone options", () => {
-        expect(step.prompt.buttons).toBeDefined();
-        expect(step.prompt.buttons!.length).toBe(2);
+        expect(step.prompt!.buttons).toBeDefined();
+        expect(step.prompt!.buttons!.length).toBe(2);
 
-        const hasGps = step.prompt.buttons!.some((b) => b.id.includes("gps"));
-        const hasZone = step.prompt.buttons!.some((b) => b.id.includes("zone"));
+        const hasGps = step.prompt!.buttons!.some((b) => b.id.includes("gps"));
+        const hasZone = step.prompt!.buttons!.some((b) => b.id.includes("zone"));
         expect(hasGps).toBe(true);
         expect(hasZone).toBe(true);
       });
@@ -160,7 +160,7 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should accept any input type", () => {
@@ -180,12 +180,12 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a list type", () => {
-        expect(step.prompt.type).toBe("list");
+        expect(step.prompt!.type).toBe("list");
       });
 
       it("should have zone sections", () => {
-        expect(step.prompt.sections).toBeDefined();
-        expect(step.prompt.sections!.length).toBeGreaterThan(0);
+        expect(step.prompt!.sections).toBeDefined();
+        expect(step.prompt!.sections!.length).toBeGreaterThan(0);
       });
 
       it("should navigate to select_store", () => {
@@ -200,8 +200,9 @@ describe("Quotation Flow", () => {
         step = quotationFlow.getStep("select_store")!;
       });
 
-      it("should be a list type", () => {
-        expect(step.prompt.type).toBe("list");
+      it("should have a dynamicPrompt function", () => {
+        expect(step.dynamicPrompt).toBeDefined();
+        expect(typeof step.dynamicPrompt).toBe("function");
       });
 
       it("should navigate to ask_contact", () => {
@@ -217,23 +218,23 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a button type", () => {
-        expect(step.prompt.type).toBe("button");
+        expect(step.prompt!.type).toBe("button");
       });
 
       it("should have contact preference buttons", () => {
-        expect(step.prompt.buttons).toBeDefined();
-        expect(step.prompt.buttons!.length).toBeGreaterThanOrEqual(2);
+        expect(step.prompt!.buttons).toBeDefined();
+        expect(step.prompt!.buttons!.length).toBeGreaterThanOrEqual(2);
       });
 
       it("should have WhatsApp option", () => {
-        const hasWhatsApp = step.prompt.buttons!.some(
+        const hasWhatsApp = step.prompt!.buttons!.some(
           (b) => b.id.includes("whatsapp") || b.title.toLowerCase().includes("whatsapp")
         );
         expect(hasWhatsApp).toBe(true);
       });
 
       it("should have email option", () => {
-        const hasEmail = step.prompt.buttons!.some(
+        const hasEmail = step.prompt!.buttons!.some(
           (b) => b.id.includes("email") || b.title.toLowerCase().includes("email")
         );
         expect(hasEmail).toBe(true);
@@ -262,7 +263,7 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a text type", () => {
-        expect(step.prompt.type).toBe("text");
+        expect(step.prompt!.type).toBe("text");
       });
 
       it("should have email validation", () => {
@@ -293,12 +294,12 @@ describe("Quotation Flow", () => {
       });
 
       it("should be a button type", () => {
-        expect(step.prompt.type).toBe("button");
+        expect(step.prompt!.type).toBe("button");
       });
 
       it("should have confirm/cancel buttons", () => {
-        expect(step.prompt.buttons).toBeDefined();
-        expect(step.prompt.buttons!.length).toBeGreaterThanOrEqual(2);
+        expect(step.prompt!.buttons).toBeDefined();
+        expect(step.prompt!.buttons!.length).toBeGreaterThanOrEqual(2);
       });
 
       it("should have dynamic nextStep function", () => {
@@ -328,26 +329,26 @@ describe("Quotation Flow", () => {
   describe("createMessageForStep", () => {
     const testWaId = "5491155556666";
 
-    it("should create list message for select_category", () => {
+    it("should create list message for select_category", async () => {
       const step = quotationFlow.getStep("select_category")!;
-      const message = quotationFlow.createMessageForStep(step, testWaId);
+      const message = await quotationFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("interactive");
       expect(message.to).toBe(testWaId);
       expect(message.content.interactive?.type).toBe("list");
     });
 
-    it("should create text message for ask_details", () => {
+    it("should create text message for ask_details", async () => {
       const step = quotationFlow.getStep("ask_details")!;
-      const message = quotationFlow.createMessageForStep(step, testWaId);
+      const message = await quotationFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("text");
       expect(message.to).toBe(testWaId);
     });
 
-    it("should create button message for ask_contact", () => {
+    it("should create button message for ask_contact", async () => {
       const step = quotationFlow.getStep("ask_contact")!;
-      const message = quotationFlow.createMessageForStep(step, testWaId);
+      const message = await quotationFlow.createMessageForStep(step, testWaId);
 
       expect(message.type).toBe("interactive");
       expect(message.content.interactive?.type).toBe("button");

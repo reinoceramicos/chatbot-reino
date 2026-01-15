@@ -136,7 +136,7 @@ export class BotService {
     }
 
     // Procesar el flujo
-    const result = this.flowManager.processFlowInput(
+    const result = await this.flowManager.processFlowInput(
       conversation,
       input,
       inputType,
@@ -346,7 +346,7 @@ export class BotService {
       };
     }
 
-    const flowResult = this.flowManager.startFlow(flowType, waId);
+    const flowResult = await this.flowManager.startFlow(flowType, waId);
 
     if (!flowResult) {
       // No se pudo iniciar el flujo, usar respuesta legacy

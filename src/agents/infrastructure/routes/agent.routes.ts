@@ -46,12 +46,16 @@ agentRouter.get("/conversations/waiting", (req: AuthenticatedRequest, res) =>
 agentRouter.get("/conversations/mine", (req: AuthenticatedRequest, res) =>
   agentController.getMyConversations(req, res)
 );
+agentRouter.get("/conversations/resolved", (req: AuthenticatedRequest, res) =>
+  agentController.getResolvedConversations(req, res)
+);
 // Solo supervisores y superiores pueden ver todas las conversaciones
 agentRouter.get("/conversations/all", requireManagerOrAbove, (req: AuthenticatedRequest, res) =>
   agentController.getAllConversations(req, res)
 );
-agentRouter.get("/conversations/:conversationId", (req: AuthenticatedRequest, res) =>
-  agentController.getConversation(req, res)
+// Specific routes MUST come before the generic /:conversationId route
+agentRouter.get("/conversations/:conversationId/available-agents", (req: AuthenticatedRequest, res) =>
+  agentController.getAvailableAgentsForTransfer(req, res)
 );
 agentRouter.post("/conversations/:conversationId/read", (req: AuthenticatedRequest, res) =>
   agentController.markAsRead(req, res)
@@ -67,6 +71,13 @@ agentRouter.post("/conversations/:conversationId/transfer-bot", (req: Authentica
 );
 agentRouter.post("/conversations/:conversationId/messages", (req: AuthenticatedRequest, res) =>
   agentController.sendMessage(req, res)
+);
+agentRouter.post("/conversations/:conversationId/transfer", (req: AuthenticatedRequest, res) =>
+  agentController.transferToAgent(req, res)
+);
+// Generic route MUST come last
+agentRouter.get("/conversations/:conversationId", (req: AuthenticatedRequest, res) =>
+  agentController.getConversation(req, res)
 );
 
 export { agentRouter };

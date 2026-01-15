@@ -1,4 +1,5 @@
-import { Flow, FlowStep } from "../../domain/entities/flow.entity";
+import { Flow, FlowStep, FlowStepPrompt } from "../../domain/entities/flow.entity";
+import { getStoreService } from "../services/store.service";
 
 // Flujo de cotización - guía al cliente para solicitar un presupuesto
 
@@ -150,23 +151,39 @@ steps.set("select_zone", {
   nextStep: "select_store",
 });
 
-// Step 3e: Seleccionar tienda de la zona (hardcodeado temporalmente)
+// Step 3e: Seleccionar tienda de la zona (dinámico desde base de datos)
 steps.set("select_store", {
   id: "select_store",
-  prompt: {
-    type: "list",
-    body: "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?",
-    buttonText: "Ver Reinos",
-    sections: [
-      {
-        title: "Reinos disponibles",
-        rows: [
-          { id: "REINO_1", title: "Reino 1 - Belgrano", description: "Av. Cabildo 2040, CABA" },
-          { id: "REINO_2", title: "Reino 2 - Palermo", description: "Av. Santa Fe 4850, CABA" },
-          { id: "REINO_5", title: "Reino 5 - Villa Urquiza", description: "Av. Triunvirato 4700, CABA" },
-        ],
-      },
-    ],
+  dynamicPrompt: async (flowData: Record<string, any>): Promise<FlowStepPrompt> => {
+    const storeService = getStoreService();
+    const selectedZone = flowData.selectedZone as string;
+
+    // Fetch stores based on selected zone
+    const stores = await storeService.getStoresByZoneId(selectedZone);
+
+    // Build list rows from stores
+    const rows = stores.map((store) => ({
+      id: store.code,
+      title: store.name,
+      description: store.address.length > 72 ? store.address.substring(0, 69) + "..." : store.address,
+    }));
+
+    // WhatsApp lists support max 10 rows per section
+    const maxRows = Math.min(rows.length, 10);
+
+    return {
+      type: "list",
+      body: stores.length > 0
+        ? "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?"
+        : "Estos son nuestros Reinos disponibles. ¿Cuál te queda más cómodo?",
+      buttonText: "Ver Reinos",
+      sections: [
+        {
+          title: "Reinos disponibles",
+          rows: rows.slice(0, maxRows),
+        },
+      ],
+    };
   },
   expectedInput: "list_reply",
   saveAs: "selectedStoreCode",

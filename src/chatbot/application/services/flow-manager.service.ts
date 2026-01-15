@@ -58,11 +58,11 @@ export class FlowManagerService {
   /**
    * Inicia un nuevo flujo
    */
-  startFlow(
+  async startFlow(
     flowType: FlowType,
     to: string,
     phoneNumberId?: string
-  ): FlowProcessResult | null {
+  ): Promise<FlowProcessResult | null> {
     if (!flowType) return null;
 
     const flow = this.flows[flowType];
@@ -75,7 +75,7 @@ export class FlowManagerService {
       return null;
     }
 
-    const message = flow.createMessageForStep(initialStep, to, phoneNumberId);
+    const message = await flow.createMessageForStep(initialStep, to, phoneNumberId, {});
 
     return {
       message,
@@ -88,13 +88,13 @@ export class FlowManagerService {
   /**
    * Procesa la entrada del usuario en un flujo activo
    */
-  processFlowInput(
+  async processFlowInput(
     conversation: Conversation,
     input: string,
     inputType: "text" | "button_reply" | "list_reply",
     to: string,
     phoneNumberId?: string
-  ): FlowProcessResult | null {
+  ): Promise<FlowProcessResult | null> {
     if (!conversation.flowType || !conversation.flowStep) {
       return null;
     }
@@ -112,7 +112,7 @@ export class FlowManagerService {
     // Verificar que el tipo de entrada es el esperado
     if (currentStep.expectedInput !== "any" && currentStep.expectedInput !== inputType) {
       // Tipo de entrada incorrecto, reenviar el prompt
-      const message = flow.createMessageForStep(currentStep, to, phoneNumberId);
+      const message = await flow.createMessageForStep(currentStep, to, phoneNumberId, conversation.flowData);
       return {
         message,
         flowCompleted: false,
@@ -173,7 +173,7 @@ export class FlowManagerService {
       return this.handleFlowCompletion(flow, newFlowData, to, phoneNumberId);
     }
 
-    const message = flow.createMessageForStep(nextStep, to, phoneNumberId);
+    const message = await flow.createMessageForStep(nextStep, to, phoneNumberId, newFlowData);
 
     return {
       message,

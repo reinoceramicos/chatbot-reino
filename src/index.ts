@@ -14,7 +14,32 @@ const PORT = envConfig.server.port;
 // Initialize WebSocket
 export const socketService = new SocketService(httpServer);
 
-app.use(cors());
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+  'https://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://127.0.0.1:5173',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (como mobile apps o curl)
+    if (!origin) return callback(null, true);
+
+    // Permitir orígenes de la lista o cualquier ngrok
+    if (allowedOrigins.includes(origin) || origin.includes('ngrok')) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin', 'ngrok-skip-browser-warning'],
+}));
 app.use(express.json());
 
 // Logging middleware

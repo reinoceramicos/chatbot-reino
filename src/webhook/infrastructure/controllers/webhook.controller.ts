@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { WebhookService } from "../../application/services/webhook.service";
+import { WebhookService, MessageStatusUpdate } from "../../application/services/webhook.service";
 import { log } from "../../application/handlers/base.handler";
 import { envConfig } from "../../../shared/config/env.config";
 
@@ -53,6 +53,50 @@ const normalizePhoneNumber = (phone: string): string => {
   return phone;
 };
 
+// Process message status updates from WhatsApp
+async function processStatusUpdates(updates: MessageStatusUpdate[]): Promise<void> {
+  for (const update of updates) {
+    try {
+      // Update message status in database
+      const updatedMessage = await prisma.message.updateMany({
+        where: { waMessageId: update.waMessageId },
+        data: { status: update.status },
+      });
+
+      if (updatedMessage.count > 0) {
+        log("MESSAGE_STATUS_UPDATED", {
+          waMessageId: update.waMessageId,
+          status: update.status,
+        });
+
+        // Emit status update via WebSocket
+        const socketService = getSocketService();
+        if (socketService) {
+          // Find the message to get conversationId
+          const message = await prisma.message.findFirst({
+            where: { waMessageId: update.waMessageId },
+            select: { id: true, conversationId: true },
+          });
+
+          if (message) {
+            socketService.emitMessageStatusUpdate({
+              conversationId: message.conversationId,
+              messageId: message.id,
+              waMessageId: update.waMessageId,
+              status: update.status,
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      log("STATUS_UPDATE_ERROR", {
+        waMessageId: update.waMessageId,
+        error: err.message,
+      });
+    }
+  }
+}
+
 export const verifyToken = (req: Request, res: Response) => {
   if (req.method !== "GET") return res.sendStatus(405);
 
@@ -81,6 +125,12 @@ export const receiveMessage = async (req: Request, res: Response) => {
   res.status(200).send("EVENT_RECEIVED");
 
   try {
+    // Process status updates first
+    const statusUpdates = webhookService.processStatusUpdates(req.body);
+    if (statusUpdates.length > 0) {
+      await processStatusUpdates(statusUpdates);
+    }
+
     const messages = await webhookService.processWebhook(req.body);
 
     for (const message of messages) {

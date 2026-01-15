@@ -104,6 +104,15 @@ export class AgentConversationService {
           orderBy: { createdAt: "desc" },
           take: 1,
         },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                direction: "INBOUND",
+              },
+            },
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -119,7 +128,7 @@ export class AgentConversationService {
       lastMessage: c.messages[0]?.content || undefined,
       lastMessageAt: c.messages[0]?.createdAt,
       startedAt: c.startedAt,
-      unreadCount: 0, // TODO: implementar conteo de no leídos
+      unreadCount: c._count.messages, // All inbound messages are "unread" for waiting conversations
     }));
   }
 
@@ -139,19 +148,35 @@ export class AgentConversationService {
       orderBy: { updatedAt: "desc" },
     });
 
-    return conversations.map((c) => ({
-      id: c.id,
-      customerId: c.customerId,
-      customerName: c.customer.name || undefined,
-      customerWaId: c.customer.waId,
-      status: c.status,
-      storeId: c.storeId || undefined,
-      storeName: c.store?.name,
-      lastMessage: c.messages[0]?.content || undefined,
-      lastMessageAt: c.messages[0]?.createdAt,
-      startedAt: c.startedAt,
-      unreadCount: 0,
-    }));
+    // Calculate unread count for each conversation
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (c) => {
+        // Count inbound messages after lastReadAt
+        const unreadCount = await this.prisma.message.count({
+          where: {
+            conversationId: c.id,
+            direction: "INBOUND",
+            ...(c.lastReadAt ? { createdAt: { gt: c.lastReadAt } } : {}),
+          },
+        });
+
+        return {
+          id: c.id,
+          customerId: c.customerId,
+          customerName: c.customer.name || undefined,
+          customerWaId: c.customer.waId,
+          status: c.status,
+          storeId: c.storeId || undefined,
+          storeName: c.store?.name,
+          lastMessage: c.messages[0]?.content || undefined,
+          lastMessageAt: c.messages[0]?.createdAt,
+          startedAt: c.startedAt,
+          unreadCount,
+        };
+      })
+    );
+
+    return conversationsWithUnread;
   }
 
   /**
@@ -306,6 +331,27 @@ export class AgentConversationService {
     });
 
     await this.agentRepository.decrementActiveConversations(agentId);
+
+    return true;
+  }
+
+  async markAsRead(conversationId: string, agentId: string): Promise<boolean> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) return false;
+
+    // For assigned conversations, only the assigned agent can mark as read
+    // For waiting conversations, any agent with access can mark as read
+    if (conversation.status === "ASSIGNED" && conversation.agentId !== agentId) {
+      return false;
+    }
+
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { lastReadAt: new Date() },
+    });
 
     return true;
   }

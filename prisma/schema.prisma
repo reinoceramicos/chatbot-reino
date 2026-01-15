@@ -61,6 +61,9 @@ model Conversation {
   resultedInSale  Boolean   @default(false) @map("resulted_in_sale")
   saleAmount      Float?    @map("sale_amount")
 
+  // Tracking de lectura
+  lastReadAt      DateTime? @map("last_read_at") // Última vez que el agente leyó los mensajes
+
   customer Customer  @relation(fields: [customerId], references: [id])
   agent    Agent?    @relation(fields: [agentId], references: [id])
   store    Store?    @relation(fields: [storeId], references: [id])
@@ -99,6 +102,13 @@ enum MessageType {
   SYSTEM
 }
 
+enum MessageStatus {
+  SENT      // Enviado al servidor de WhatsApp
+  DELIVERED // Entregado al dispositivo del cliente
+  READ      // Leído por el cliente
+  FAILED    // Error al enviar
+}
+
 model Message {
   id             String           @id @default(cuid())
   conversationId String           @map("conversation_id")
@@ -106,6 +116,7 @@ model Message {
   waMessageId    String?          @unique @map("wa_message_id") // ID de WhatsApp
   direction      MessageDirection
   type           MessageType      @default(TEXT)
+  status         MessageStatus?   // Estado del mensaje (solo para OUTBOUND)
   content        String?          // Contenido del mensaje (texto)
   mediaUrl       String?          @map("media_url")
   mediaId        String?          @map("media_id")

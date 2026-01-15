@@ -29,11 +29,24 @@ export interface WhatsAppWebhookPayload {
           wa_id: string;
         }>;
         messages?: Array<any>;
-        statuses?: any[];
+        statuses?: Array<{
+          id: string;
+          status: "sent" | "delivered" | "read" | "failed";
+          timestamp: string;
+          recipient_id: string;
+          errors?: Array<{ code: number; title: string }>;
+        }>;
       };
       field: string;
     }>;
   }>;
+}
+
+export interface MessageStatusUpdate {
+  waMessageId: string;
+  status: "SENT" | "DELIVERED" | "READ" | "FAILED";
+  timestamp: Date;
+  recipientId: string;
 }
 
 export class WebhookService {
@@ -74,6 +87,45 @@ export class WebhookService {
 
   registerHandler(messageType: string, handler: MessageHandlerPort): void {
     this.handlers.set(messageType, handler);
+  }
+
+  /**
+   * Procesa actualizaciones de estado de mensajes
+   */
+  processStatusUpdates(payload: WhatsAppWebhookPayload): MessageStatusUpdate[] {
+    const statusUpdates: MessageStatusUpdate[] = [];
+
+    const entry = payload.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+
+    if (!value?.statuses?.length) {
+      return statusUpdates;
+    }
+
+    for (const status of value.statuses) {
+      const statusMap: Record<string, "SENT" | "DELIVERED" | "READ" | "FAILED"> = {
+        sent: "SENT",
+        delivered: "DELIVERED",
+        read: "READ",
+        failed: "FAILED",
+      };
+
+      statusUpdates.push({
+        waMessageId: status.id,
+        status: statusMap[status.status] || "SENT",
+        timestamp: new Date(parseInt(status.timestamp) * 1000),
+        recipientId: status.recipient_id,
+      });
+
+      log("STATUS_UPDATE_PARSED", {
+        messageId: status.id,
+        status: status.status,
+        recipientId: status.recipient_id,
+      });
+    }
+
+    return statusUpdates;
   }
 
   async processWebhook(payload: WhatsAppWebhookPayload): Promise<IncomingMessage[]> {

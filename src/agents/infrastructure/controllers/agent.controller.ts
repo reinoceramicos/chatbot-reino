@@ -231,6 +231,31 @@ export class AgentController {
     }
   }
 
+  async markAsRead(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.agent) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      const success = await this.conversationService.markAsRead(
+        conversationId,
+        req.agent.agentId
+      );
+
+      if (!success) {
+        res.status(400).json({ error: "No se pudo marcar como leída" });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  }
+
   async assignConversation(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {

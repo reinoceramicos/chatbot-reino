@@ -199,6 +199,16 @@ export class SocketService {
     this.io.to("agents").emit("conversation:resolved", data);
   }
 
+  // Emitir actualización de estado de mensaje (enviado, entregado, leído)
+  emitMessageStatusUpdate(data: {
+    conversationId: string;
+    messageId: string;
+    waMessageId: string;
+    status: "SENT" | "DELIVERED" | "READ" | "FAILED";
+  }): void {
+    this.io.to(`conversation:${data.conversationId}`).emit("message:status", data);
+  }
+
   // Obtener la instancia del servidor Socket.IO
   getIO(): Server {
     return this.io;

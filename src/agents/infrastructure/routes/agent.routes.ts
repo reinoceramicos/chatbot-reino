@@ -53,6 +53,9 @@ agentRouter.get("/conversations/all", requireManagerOrAbove, (req: Authenticated
 agentRouter.get("/conversations/:conversationId", (req: AuthenticatedRequest, res) =>
   agentController.getConversation(req, res)
 );
+agentRouter.post("/conversations/:conversationId/read", (req: AuthenticatedRequest, res) =>
+  agentController.markAsRead(req, res)
+);
 agentRouter.post("/conversations/:conversationId/assign", (req: AuthenticatedRequest, res) =>
   agentController.assignConversation(req, res)
 );

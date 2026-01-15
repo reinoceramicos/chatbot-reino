@@ -221,13 +221,19 @@ export class BotService {
     conversationId: string,
     customerId: string
   ): Promise<void> {
+    // For interactive messages, use the button/list reply title as content
+    let content = data.content;
+    if (data.messageType === "interactive" && data.interactiveReplyTitle) {
+      content = data.interactiveReplyTitle;
+    }
+
     await this.messageRepository.save({
       conversationId,
       customerId,
       waMessageId: data.waMessageId,
       direction: "INBOUND",
       type: data.messageType,
-      content: data.content,
+      content,
       mediaId: data.mediaId,
       metadata: data.metadata,
       sentByBot: false,

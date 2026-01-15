@@ -133,12 +133,17 @@ const receiveMessage = async (req, res) => {
                         where: { id: botResponse.conversationId },
                         select: { storeId: true },
                     });
+                    // For interactive messages, use the button/list reply title as content
+                    let messageContent = message.content.text;
+                    if (message.type === "interactive" && interactiveReplyTitle) {
+                        messageContent = interactiveReplyTitle;
+                    }
                     socketService.emitNewCustomerMessage({
                         conversationId: botResponse.conversationId,
                         storeId: conversation?.storeId || undefined,
                         message: {
                             id: message.id,
-                            content: message.content.text,
+                            content: messageContent,
                             type: message.type,
                             direction: "INBOUND",
                             createdAt: new Date(),

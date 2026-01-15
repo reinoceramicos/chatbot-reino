@@ -52,7 +52,7 @@ class GCSService {
     }
     /**
      * Sube un archivo al bucket público
-     * Los archivos en este bucket son accesibles sin autenticación
+     * El bucket debe tener allUsers con rol Storage Object Viewer
      */
     async uploadPublic(buffer, fileName, contentType, folder = "media") {
         const filePath = `${folder}/${fileName}`;
@@ -63,8 +63,6 @@ class GCSService {
                 contentType,
             },
         });
-        // Hacer el archivo público
-        await file.makePublic();
         const url = `https://storage.googleapis.com/${this.publicBucket}/${filePath}`;
         return {
             url,

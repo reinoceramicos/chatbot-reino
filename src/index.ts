@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { webhookRouter } from "./webhook/infrastructure/routes/webhook.routes";
 import { agentRouter } from "./agents/infrastructure/routes/agent.routes";
 import { analyticsRouter, analyticsService } from "./analytics";
+import { flowRouter } from "./flows";
 import { envConfig } from "./shared/config/env.config";
 import { SocketService } from "./shared/infrastructure/websocket/socket.service";
 
@@ -55,6 +56,7 @@ app.use((req, _res, next) => {
 app.use("/webhook", webhookRouter);
 app.use("/api/agents", agentRouter);
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/flows", flowRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

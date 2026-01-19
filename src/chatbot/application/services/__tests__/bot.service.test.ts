@@ -286,7 +286,7 @@ describe("BotService", () => {
         );
       });
 
-      it("should transfer to agent when user selects talk to seller option", async () => {
+      it("should ask for location when user selects talk to seller option", async () => {
         const conversationWithFlow = new Conversation({
           id: "conv-123",
           customerId: "customer-123",
@@ -306,8 +306,13 @@ describe("BotService", () => {
         );
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.transferToAgent).toBe(true);
-        expect(conversationRepository.updateStatus).toHaveBeenCalledWith("conv-123", "WAITING");
+        expect(result.interactiveMessage).toBeDefined();
+        expect(conversationRepository.updateFlow).toHaveBeenCalledWith(
+          "conv-123",
+          expect.objectContaining({
+            flowStep: "ask_location_method",
+          })
+        );
       });
 
       it("should cancel flow when user sends cancel command", async () => {

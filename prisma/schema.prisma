@@ -245,3 +245,113 @@ model BotConfig {
 
   @@map("bot_config")
 }
+
+model FlowDefinition {
+  id             String   @id @default(cuid())
+  code           String   @unique // "main_menu", "quotation", "info"
+  name           String // "Menú Principal", "Cotización", etc.
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  isDefault      Boolean  @default(false) @map("is_default") // Flujo inicial del chatbot
+  initialStepId  String?  @map("initial_step_id") // Step inicial del flujo
+  timeoutMinutes Int      @default(30) @map("timeout_minutes")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  steps FlowStep[]
+
+  @@index([isActive])
+  @@index([isDefault])
+  @@map("flow_definitions")
+}
+
+enum FlowStepType {
+  TEXT // Mensaje de texto simple
+  BUTTON // Mensaje con botones (max 3)
+  LIST // Mensaje con lista desplegable (max 10 items por sección)
+  LOCATION_REQUEST // Solicita ubicación al usuario
+  DYNAMIC_LIST // Lista generada dinámicamente (ej: tiendas por zona)
+}
+
+enum FlowExpectedInput {
+  TEXT // Espera texto libre
+  BUTTON_REPLY // Espera click en botón
+  LIST_REPLY // Espera selección de lista
+  LOCATION // Espera ubicación GPS
+  ANY // Cualquier tipo de input
+  NONE // No espera input (mensaje final)
+}
+
+model FlowStep {
+  id            String            @id @default(cuid())
+  flowId        String            @map("flow_id")
+  code          String // "welcome", "ask_category", etc. Único dentro del flujo
+  name          String // Nombre descriptivo para el admin
+  order         Int               @default(0) // Orden visual en el editor
+  stepType      FlowStepType      @default(TEXT) @map("step_type")
+  expectedInput FlowExpectedInput @default(TEXT) @map("expected_input")
+
+  // Contenido del mensaje
+  messageBody    String  @map("message_body") // Texto principal
+  messageHeader  String? @map("message_header") // Header (opcional)
+  messageFooter  String? @map("message_footer") // Footer (opcional)
+  listButtonText String? @map("list_button_text") // Texto del botón para listas
+
+  // Validación
+  validationRegex String? @map("validation_regex") // Regex para validar input de texto
+  errorMessage    String? @map("error_message") // Mensaje si falla validación
+
+  // Almacenamiento
+  saveResponseAs String? @map("save_response_as") // Key para guardar respuesta en flowData
+
+  // Acciones especiales
+  transferToAgent Boolean @default(false) @map("transfer_to_agent")
+  switchToFlow    String? @map("switch_to_flow") // Code del flujo al que cambiar
+
+  // Para DYNAMIC_LIST: define qué tipo de datos cargar
+  dynamicDataSource String? @map("dynamic_data_source") // "stores_by_zone", "categories", etc.
+
+  // Navegación por defecto (si no hay transición específica)
+  defaultNextStepId String? @map("default_next_step_id") // null = END
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  flow        FlowDefinition       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  options     FlowStepOption[]
+  transitions FlowStepTransition[]
+
+  @@unique([flowId, code])
+  @@index([flowId])
+  @@map("flow_steps")
+}
+
+model FlowStepOption {
+  id          String  @id @default(cuid())
+  stepId      String  @map("step_id")
+  optionId    String  @map("option_id") // ID que se envía cuando el usuario elige esta opción
+  title       String // Texto visible (max 20 chars para botones, 24 para listas)
+  description String? // Solo para listas (max 72 chars)
+  section     String? // Nombre de sección para agrupar en listas
+  order       Int     @default(0)
+
+  step FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, optionId])
+  @@index([stepId])
+  @@map("flow_step_options")
+}
+
+model FlowStepTransition {
+  id           String  @id @default(cuid())
+  stepId       String  @map("step_id")
+  condition    String // Valor del input que activa esta transición (ej: "menu_comprar", "confirm_yes")
+  nextStepId   String? @map("next_step_id") // null = END
+  switchToFlow String? @map("switch_to_flow") // Código del flujo al que cambiar (ej: "quotation")
+  order        Int     @default(0) // Orden de evaluación (para múltiples condiciones)
+
+  step FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@map("flow_step_transitions")
+}

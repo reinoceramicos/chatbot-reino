@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { webhookRouter } from "./webhook/infrastructure/routes/webhook.routes";
 import { agentRouter } from "./agents/infrastructure/routes/agent.routes";
+import { analyticsRouter, analyticsService } from "./analytics";
 import { envConfig } from "./shared/config/env.config";
 import { SocketService } from "./shared/infrastructure/websocket/socket.service";
 
@@ -53,6 +54,7 @@ app.use((req, _res, next) => {
 // Routes
 app.use("/webhook", webhookRouter);
 app.use("/api/agents", agentRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -61,4 +63,7 @@ app.get("/health", (_req, res) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+
+  // Start analytics alert monitoring (check every 5 minutes)
+  analyticsService.startAlertMonitoring(5);
 });

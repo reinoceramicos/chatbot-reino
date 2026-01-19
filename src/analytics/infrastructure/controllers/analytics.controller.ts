@@ -6,10 +6,6 @@ import { AnalyticsQueryFilter } from "../../application/dtos/analytics.dto";
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  /**
-   * GET /analytics/me
-   * Get metrics for the authenticated agent (any role can access their own)
-   */
   async getMyMetrics(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {
@@ -30,8 +26,6 @@ export class AnalyticsController {
       };
 
       const metrics = await this.analyticsService.getAgentMetrics(filter);
-
-      // Return only the authenticated agent's metrics
       const myMetrics = metrics.agents.find(a => a.agentId === req.agent!.agentId);
 
       res.json({
@@ -44,10 +38,6 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * GET /analytics/conversations
-   * Get conversation metrics for a period
-   */
   async getConversationMetrics(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {
@@ -56,13 +46,10 @@ export class AnalyticsController {
       }
 
       const { from, to, storeId, zoneId, groupBy } = req.query;
-
       const dateRange = AnalyticsService.parseDateRange(
         from as string | undefined,
         to as string | undefined
       );
-
-      // Apply role-based filtering
       const roleFilter = this.applyRoleFilter(req, storeId as string, zoneId as string);
 
       const filter: AnalyticsQueryFilter = {
@@ -81,14 +68,6 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * GET /analytics/agents
-   * Get agent performance metrics filtered by role
-   * - SELLER: only their own metrics
-   * - MANAGER: agents in their store
-   * - ZONE_SUPERVISOR: agents in their zone
-   * - REGIONAL_MANAGER: all agents
-   */
   async getAgentMetrics(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {
@@ -97,16 +76,12 @@ export class AnalyticsController {
       }
 
       const { from, to, storeId, zoneId } = req.query;
-
       const dateRange = AnalyticsService.parseDateRange(
         from as string | undefined,
         to as string | undefined
       );
-
-      // Apply role-based filtering
       const roleFilter = this.applyRoleFilter(req, storeId as string, zoneId as string);
 
-      // If SELLER, only return their own metrics
       if (req.agent.role === "SELLER") {
         const filter: AnalyticsQueryFilter = {
           from: dateRange.from,
@@ -133,10 +108,6 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * GET /analytics/agents/:agentId
-   * Get metrics for a specific agent (with role-based access control)
-   */
   async getAgentMetricsById(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       if (!req.agent) {
@@ -147,7 +118,6 @@ export class AnalyticsController {
       const { agentId } = req.params;
       const { from, to } = req.query;
 
-      // Check if user has permission to view this agent's metrics
       const hasAccess = await this.canAccessAgentMetrics(req, agentId);
       if (!hasAccess) {
         res.status(403).json({ error: "No tienes permiso para ver estas métricas" });
@@ -183,95 +153,9 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * Apply role-based filtering to queries
-   */
-  private applyRoleFilter(
-    req: AuthenticatedRequest,
-    requestedStoreId?: string,
-    requestedZoneId?: string
-  ): { storeId?: string; zoneId?: string } {
-    const agent = req.agent!;
-
-    switch (agent.role) {
-      case "REGIONAL_MANAGER":
-        // Can see everything, use requested filters
-        return {
-          storeId: requestedStoreId,
-          zoneId: requestedZoneId,
-        };
-
-      case "ZONE_SUPERVISOR":
-        // Can only see their zone
-        // If they request a specific store, validate it's in their zone
-        return {
-          storeId: requestedStoreId, // Will be filtered by zone anyway
-          zoneId: agent.zoneId, // Force their zone
-        };
-
-      case "MANAGER":
-        // Can only see their store
-        return {
-          storeId: agent.storeId, // Force their store
-          zoneId: undefined,
-        };
-
-      case "SELLER":
-      default:
-        // Sellers should use /analytics/me
-        return {
-          storeId: agent.storeId,
-          zoneId: undefined,
-        };
-    }
-  }
-
-  /**
-   * Check if user can access a specific agent's metrics
-   */
-  private async canAccessAgentMetrics(
-    req: AuthenticatedRequest,
-    targetAgentId: string
-  ): Promise<boolean> {
-    const agent = req.agent!;
-
-    // Can always see own metrics
-    if (agent.agentId === targetAgentId) {
-      return true;
-    }
-
-    switch (agent.role) {
-      case "REGIONAL_MANAGER":
-        // Can see all agents
-        return true;
-
-      case "ZONE_SUPERVISOR":
-        // Can see agents in their zone
-        // This would require a DB lookup to check if target agent is in their zone
-        // For now, allow and let the service filter
-        return true;
-
-      case "MANAGER":
-        // Can see agents in their store
-        // This would require a DB lookup to check if target agent is in their store
-        // For now, allow and let the service filter
-        return true;
-
-      case "SELLER":
-      default:
-        // Can only see own metrics
-        return false;
-    }
-  }
-
-  /**
-   * GET /analytics/bot/funnel
-   * Get bot funnel metrics (flow completion, abandonment)
-   */
   async getBotFunnelMetrics(req: Request, res: Response): Promise<void> {
     try {
       const { from, to, storeId, zoneId } = req.query;
-
       const dateRange = AnalyticsService.parseDateRange(
         from as string | undefined,
         to as string | undefined
@@ -292,10 +176,6 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * GET /analytics/dashboard
-   * Get real-time dashboard summary
-   */
   async getDashboardSummary(req: Request, res: Response): Promise<void> {
     try {
       const { storeId, zoneId } = req.query;
@@ -308,6 +188,50 @@ export class AnalyticsController {
     } catch (error: any) {
       console.error("[AnalyticsController] Error getting dashboard summary:", error);
       res.status(500).json({ error: "Error al obtener resumen del dashboard" });
+    }
+  }
+
+  private applyRoleFilter(
+    req: AuthenticatedRequest,
+    requestedStoreId?: string,
+    requestedZoneId?: string
+  ): { storeId?: string; zoneId?: string } {
+    const agent = req.agent!;
+
+    switch (agent.role) {
+      case "REGIONAL_MANAGER":
+        return { storeId: requestedStoreId, zoneId: requestedZoneId };
+
+      case "ZONE_SUPERVISOR":
+        return { storeId: requestedStoreId, zoneId: agent.zoneId };
+
+      case "MANAGER":
+        return { storeId: agent.storeId, zoneId: undefined };
+
+      case "SELLER":
+      default:
+        return { storeId: agent.storeId, zoneId: undefined };
+    }
+  }
+
+  private async canAccessAgentMetrics(
+    req: AuthenticatedRequest,
+    targetAgentId: string
+  ): Promise<boolean> {
+    const agent = req.agent!;
+
+    if (agent.agentId === targetAgentId) {
+      return true;
+    }
+
+    switch (agent.role) {
+      case "REGIONAL_MANAGER":
+      case "ZONE_SUPERVISOR":
+      case "MANAGER":
+        return true;
+      case "SELLER":
+      default:
+        return false;
     }
   }
 }

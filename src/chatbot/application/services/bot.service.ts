@@ -7,6 +7,10 @@ import { AutoResponseService } from "./auto-response.service";
 import { FlowManagerService } from "./flow-manager.service";
 import { PrismaMessageRepository } from "../../infrastructure/repositories/prisma-message.repository";
 import { Message } from "../../../messaging/domain/entities/message.entity";
+import { DynamicFlowLoaderService } from "./dynamic-flow-loader.service";
+import { FlowRepositoryPort } from "../../../flows/domain/ports/flow.repository.port";
+import { StoreService } from "./store.service";
+// Fallback imports for when database flows are not available
 import { quotationFlow } from "../flows/quotation.flow";
 import { infoFlow } from "../flows/info.flow";
 import { mainMenuFlow } from "../flows/main-menu.flow";
@@ -40,6 +44,8 @@ const DEFAULT_MESSAGES = {
 
 export class BotService {
   private readonly flowManager: FlowManagerService;
+  private readonly dynamicFlowLoader?: DynamicFlowLoaderService;
+  private flowsInitialized: boolean = false;
 
   constructor(
     private readonly customerRepository: CustomerRepositoryPort,
@@ -47,16 +53,94 @@ export class BotService {
     private readonly autoResponseService: AutoResponseService,
     private readonly messageRepository: PrismaMessageRepository,
     private readonly prisma?: PrismaClient,
-    flowManager?: FlowManagerService
+    flowManager?: FlowManagerService,
+    flowRepository?: FlowRepositoryPort,
+    storeService?: StoreService
   ) {
     this.flowManager = flowManager || new FlowManagerService();
 
+    // If a flow repository is provided, use dynamic flow loading
+    if (flowRepository && storeService) {
+      this.dynamicFlowLoader = new DynamicFlowLoaderService(flowRepository, storeService);
+    } else {
+      // Fallback: register hardcoded flows
+      this.registerDefaultFlows();
+      this.flowsInitialized = true;
+    }
+  }
+
+  /**
+   * Registers the default hardcoded flows as fallback
+   */
+  private registerDefaultFlows(): void {
     this.flowManager.registerFlow("main_menu", mainMenuFlow);
     this.flowManager.registerFlow("quotation", quotationFlow);
     this.flowManager.registerFlow("info", infoFlow);
   }
 
+  /**
+   * Initializes flows from the database. Call this at startup.
+   */
+  async initializeFlows(): Promise<void> {
+    if (this.flowsInitialized) {
+      return;
+    }
+
+    if (!this.dynamicFlowLoader) {
+      this.registerDefaultFlows();
+      this.flowsInitialized = true;
+      return;
+    }
+
+    try {
+      const flows = await this.dynamicFlowLoader.loadAllFlows();
+
+      if (flows.size === 0) {
+        console.log("No flows found in database, using default flows");
+        this.registerDefaultFlows();
+      } else {
+        for (const [code, flow] of flows) {
+          this.flowManager.registerFlow(code, flow);
+        }
+        console.log(`Loaded ${flows.size} flows from database`);
+      }
+
+      this.flowsInitialized = true;
+    } catch (error) {
+      console.error("Error loading flows from database, using defaults:", error);
+      this.registerDefaultFlows();
+      this.flowsInitialized = true;
+    }
+  }
+
+  /**
+   * Reloads flows from the database (useful when flows are updated via API)
+   */
+  async reloadFlows(): Promise<void> {
+    if (!this.dynamicFlowLoader) {
+      return;
+    }
+
+    try {
+      const flows = await this.dynamicFlowLoader.loadAllFlows();
+
+      // Clear existing flows and register new ones
+      for (const [code, flow] of flows) {
+        this.flowManager.registerFlow(code, flow);
+      }
+
+      console.log(`Reloaded ${flows.size} flows from database`);
+    } catch (error) {
+      console.error("Error reloading flows:", error);
+    }
+  }
+
   async processMessage(data: IncomingMessageData): Promise<BotResponse> {
+    // 0. Ensure flows are initialized
+    if (!this.flowsInitialized) {
+      await this.initializeFlows();
+    }
+
     // 1. Obtener o crear cliente
     const customer = await this.getOrCreateCustomer(data.waId, data.senderName);
 

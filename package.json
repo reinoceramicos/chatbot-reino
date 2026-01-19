@@ -10,7 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "db:setup": "prisma migrate deploy && prisma generate && prisma db seed"
+    "db:setup": "prisma migrate deploy && prisma generate && prisma db seed",
+    "db:seed:flows": "ts-node prisma/seed-flows.ts"
   },
   "keywords": [],
   "author": "",

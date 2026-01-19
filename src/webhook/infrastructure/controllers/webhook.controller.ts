@@ -14,11 +14,15 @@ import {
   IncomingMessageData,
 } from "../../../chatbot/application/services/bot.service";
 import { AutoResponseService } from "../../../chatbot/application/services/auto-response.service";
+import { StoreService } from "../../../chatbot/application/services/store.service";
 import { PrismaCustomerRepository } from "../../../chatbot/infrastructure/repositories/prisma-customer.repository";
 import { PrismaConversationRepository } from "../../../chatbot/infrastructure/repositories/prisma-conversation.repository";
 import { PrismaAutoResponseRepository } from "../../../chatbot/infrastructure/repositories/prisma-auto-response.repository";
 import { PrismaMessageRepository } from "../../../chatbot/infrastructure/repositories/prisma-message.repository";
 import { prisma } from "../../../shared/infrastructure/database/prisma.service";
+
+// Flows
+import { PrismaFlowRepository } from "../../../flows/infrastructure/repositories/prisma-flow.repository";
 
 // WebSocket
 import { getSocketService } from "../../../shared/infrastructure/websocket/socket.service";
@@ -37,12 +41,20 @@ const conversationRepository = new PrismaConversationRepository(prisma);
 const autoResponseRepository = new PrismaAutoResponseRepository(prisma);
 const messageRepository = new PrismaMessageRepository(prisma);
 const autoResponseService = new AutoResponseService(autoResponseRepository);
+
+// Flow-related services for dynamic flow loading
+const flowRepository = new PrismaFlowRepository(prisma);
+const storeService = new StoreService(prisma);
+
 const botService = new BotService(
   customerRepository,
   conversationRepository,
   autoResponseService,
   messageRepository,
-  prisma
+  prisma,
+  undefined, // flowManager (use default)
+  flowRepository,
+  storeService
 );
 
 // Normaliza numeros argentinos: 549XXXXXXXXXX -> 54XXXXXXXXXX

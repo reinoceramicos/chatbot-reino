@@ -5,14 +5,21 @@ const steps = new Map<string, FlowStep>();
 
 steps.set("welcome", {
   id: "welcome",
-  prompt: {
-    type: "button",
-    body: "¡Hola! 👋 Bienvenido a *Reino Cerámicos*.\n\n¿En qué podemos ayudarte?",
-    buttons: [
-      { id: "menu_comprar", title: "Quiero comprar" },
-      { id: "menu_consultas", title: "Tengo consultas" },
-      { id: "menu_vendedor", title: "Hablar con vendedor" },
-    ],
+  dynamicPrompt: async (flowData: Record<string, any>) => {
+    const customerName = flowData.customerName;
+    const greeting = customerName
+      ? `¡Hola ${customerName}! 👋 Qué bueno verte de nuevo.\n\n¿En qué podemos ayudarte hoy?`
+      : "¡Hola! 👋 Bienvenido a *Reino Cerámicos*.\n\n¿En qué podemos ayudarte?";
+
+    return {
+      type: "button",
+      body: greeting,
+      buttons: [
+        { id: "menu_comprar", title: "Quiero comprar" },
+        { id: "menu_consultas", title: "Tengo consultas" },
+        { id: "menu_vendedor", title: "Hablar con vendedor" },
+      ],
+    };
   },
   expectedInput: "button_reply",
   nextStep: (input: string) => {

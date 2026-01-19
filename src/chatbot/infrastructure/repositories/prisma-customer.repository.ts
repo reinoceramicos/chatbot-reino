@@ -16,6 +16,7 @@ export class PrismaCustomerRepository implements CustomerRepositoryPort {
       id: customer.id,
       waId: customer.waId,
       name: customer.name || undefined,
+      nameConfirmed: customer.nameConfirmed,
       phone: customer.phone || undefined,
       email: customer.email || undefined,
       createdAt: customer.createdAt,
@@ -28,6 +29,7 @@ export class PrismaCustomerRepository implements CustomerRepositoryPort {
       data: {
         waId: customer.waId,
         name: customer.name,
+        nameConfirmed: customer.nameConfirmed,
         phone: customer.phone,
         email: customer.email,
       },
@@ -37,6 +39,7 @@ export class PrismaCustomerRepository implements CustomerRepositoryPort {
       id: created.id,
       waId: created.waId,
       name: created.name || undefined,
+      nameConfirmed: created.nameConfirmed,
       phone: created.phone || undefined,
       email: created.email || undefined,
       createdAt: created.createdAt,
@@ -49,6 +52,7 @@ export class PrismaCustomerRepository implements CustomerRepositoryPort {
       where: { id },
       data: {
         name: data.name,
+        nameConfirmed: data.nameConfirmed,
         phone: data.phone,
         email: data.email,
       },
@@ -58,10 +62,15 @@ export class PrismaCustomerRepository implements CustomerRepositoryPort {
       id: updated.id,
       waId: updated.waId,
       name: updated.name || undefined,
+      nameConfirmed: updated.nameConfirmed,
       phone: updated.phone || undefined,
       email: updated.email || undefined,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     });
+  }
+
+  async confirmName(id: string, name: string): Promise<Customer> {
+    return this.update(id, { name, nameConfirmed: true });
   }
 }

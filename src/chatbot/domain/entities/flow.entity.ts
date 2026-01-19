@@ -26,6 +26,7 @@ export interface FlowStep {
   saveAs?: string;
   onTimeout?: string;
   transferToAgent?: boolean;
+  confirmName?: boolean; // Flag para confirmar el nombre del usuario
 }
 
 export interface FlowDefinition {

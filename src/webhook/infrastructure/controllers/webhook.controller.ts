@@ -164,6 +164,13 @@ export const receiveMessage = async (req: Request, res: Response) => {
           mediaId: message.content.media?.id,
           interactiveReplyId,
           interactiveReplyTitle,
+          // Pasar ubicación directamente para fácil acceso
+          location: message.content.location ? {
+            latitude: message.content.location.latitude,
+            longitude: message.content.location.longitude,
+            name: message.content.location.name,
+            address: message.content.location.address,
+          } : undefined,
           metadata: {
             location: message.content.location,
             contacts: message.content.contacts,

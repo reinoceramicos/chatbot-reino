@@ -9,6 +9,7 @@ export interface FlowProcessResult {
   newFlowData?: FlowData;
   transferToAgent?: boolean;
   switchToFlow?: string;
+  confirmName?: boolean; // Si se debe confirmar el nombre del usuario
 }
 
 export interface FlowRegistry {
@@ -193,6 +194,7 @@ export class FlowManagerService {
       flowCompleted: false,
       newFlowStep: nextStepId,
       newFlowData: newFlowData,
+      confirmName: nextStep.confirmName,
     };
   }
 

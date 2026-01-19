@@ -14,6 +14,14 @@ import { StoreService } from "./store.service";
 import { quotationFlow } from "../flows/quotation.flow";
 import { infoFlow } from "../flows/info.flow";
 import { mainMenuFlow } from "../flows/main-menu.flow";
+import { onboardingFlow } from "../flows/onboarding.flow";
+
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+  name?: string;
+  address?: string;
+}
 
 export interface IncomingMessageData {
   waId: string;
@@ -26,6 +34,8 @@ export interface IncomingMessageData {
   // Para respuestas interactivas
   interactiveReplyId?: string;
   interactiveReplyTitle?: string;
+  // Para mensajes de ubicación
+  location?: LocationData;
 }
 
 export interface BotResponse {
@@ -45,6 +55,7 @@ const DEFAULT_MESSAGES = {
 export class BotService {
   private readonly flowManager: FlowManagerService;
   private readonly dynamicFlowLoader?: DynamicFlowLoaderService;
+  private readonly storeService?: StoreService;
   private flowsInitialized: boolean = false;
 
   constructor(
@@ -58,6 +69,7 @@ export class BotService {
     storeService?: StoreService
   ) {
     this.flowManager = flowManager || new FlowManagerService();
+    this.storeService = storeService;
 
     // If a flow repository is provided, use dynamic flow loading
     if (flowRepository && storeService) {
@@ -76,6 +88,7 @@ export class BotService {
     this.flowManager.registerFlow("main_menu", mainMenuFlow);
     this.flowManager.registerFlow("quotation", quotationFlow);
     this.flowManager.registerFlow("info", infoFlow);
+    this.flowManager.registerFlow("onboarding", onboardingFlow);
   }
 
   /**
@@ -182,7 +195,53 @@ export class BotService {
     let input: string;
     let inputType: "text" | "button_reply" | "list_reply";
 
-    if (data.interactiveReplyId) {
+    // Manejar mensaje de ubicación GPS
+    if (data.messageType === "location" || data.location || data.metadata?.location) {
+      const locationResult = await this.handleLocationMessage(data, conversation);
+      if (locationResult) {
+        // Actualizar flowData con la tienda encontrada
+        const updatedFlowData = {
+          ...(conversation.flowData || {}),
+          ...locationResult.flowData,
+        };
+
+        // Asignar storeId a la conversación si encontramos tienda
+        if (locationResult.storeId) {
+          await this.conversationRepository.updateStoreId(conversation.id!, locationResult.storeId);
+
+          // Log de asignación
+          console.log("═══════════════════════════════════════════════════════");
+          console.log("📍 UBICACIÓN RECIBIDA - ASIGNACIÓN DE TIENDA");
+          console.log("═══════════════════════════════════════════════════════");
+          console.log(`   Usuario: ${data.waId}`);
+          console.log(`   Coordenadas: ${locationResult.flowData.userLatitude}, ${locationResult.flowData.userLongitude}`);
+          console.log(`   ➜ Asignado a: ${locationResult.flowData.selectedStoreName}`);
+          console.log(`   ➜ Dirección: ${locationResult.flowData.selectedStoreAddress}`);
+          console.log(`   ➜ Distancia: ${locationResult.flowData.locationDistance} km`);
+          console.log(`   ➜ Store ID: ${locationResult.storeId}`);
+          console.log(`   ➜ Conversación: ${conversation.id}`);
+          console.log("═══════════════════════════════════════════════════════");
+        }
+
+        // Actualizar el flujo con los datos de ubicación
+        await this.conversationRepository.updateFlow(conversation.id!, {
+          flowData: updatedFlowData,
+        });
+
+        // Continuar procesando con el input "location_received"
+        input = "location_received";
+        inputType = "text";
+
+        // Actualizar conversation para el siguiente paso
+        conversation = {
+          ...conversation,
+          flowData: updatedFlowData,
+        } as Conversation;
+      } else {
+        input = data.content || "location";
+        inputType = "text";
+      }
+    } else if (data.interactiveReplyId) {
       input = data.interactiveReplyId;
       // Determinar tipo de interacción desde metadata
       const interactiveType = data.metadata?.interactiveType || data.metadata?.interactive?.type;
@@ -236,6 +295,12 @@ export class BotService {
         shouldRespond: true,
         interactiveMessage: result.message,
       };
+    }
+
+    // Si el flujo indica que se debe confirmar el nombre, hacerlo
+    if (result.confirmName && result.newFlowData?.userName) {
+      await this.customerRepository.confirmName(customer.id!, result.newFlowData.userName);
+      console.log(`✅ Nombre confirmado: ${result.newFlowData.userName} para cliente ${customer.id}`);
     }
 
     // Actualizar estado del flujo
@@ -334,7 +399,22 @@ export class BotService {
       customerId: customer.id!,
     };
 
-    const flowResult = await this.flowManager.startFlow("main_menu", data.waId);
+    // Determinar qué flujo iniciar basado en si es usuario nuevo o recurrente
+    let flowToStart: FlowType;
+    let flowData: Record<string, any> = {};
+
+    if (customer.isNewUser()) {
+      // Usuario nuevo: iniciar onboarding para pedir nombre
+      flowToStart = "onboarding";
+      console.log(`🆕 Usuario nuevo detectado: ${data.waId} - iniciando onboarding`);
+    } else {
+      // Usuario recurrente: personalizar el saludo e ir directo al menú
+      flowToStart = "main_menu";
+      flowData = { customerName: customer.name };
+      console.log(`👋 Usuario recurrente: ${customer.name} (${data.waId}) - mostrando menú`);
+    }
+
+    const flowResult = await this.flowManager.startFlow(flowToStart!, data.waId);
 
     if (!flowResult) {
       return {
@@ -345,9 +425,9 @@ export class BotService {
     }
 
     await this.conversationRepository.updateFlow(conversation.id!, {
-      flowType: "main_menu",
+      flowType: flowToStart,
       flowStep: flowResult.newFlowStep,
-      flowData: flowResult.newFlowData,
+      flowData: { ...flowResult.newFlowData, ...flowData },
       flowStartedAt: new Date(),
     });
 
@@ -371,5 +451,125 @@ export class BotService {
       content,
       sentByBot: true,
     });
+  }
+
+  /**
+   * Handles location messages by finding the nearest store
+   * and returning the store info to save in flowData
+   */
+  private async handleLocationMessage(
+    data: IncomingMessageData,
+    conversation: Conversation
+  ): Promise<{ flowData: Record<string, any>; storeId?: string } | null> {
+    // Extract location from various sources
+    const location = data.location || data.metadata?.location;
+
+    if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+      console.log("Invalid location data received:", location);
+      return null;
+    }
+
+    console.log("Processing location:", { lat: location.latitude, lng: location.longitude });
+
+    // Find nearest store using database
+    if (!this.prisma) {
+      console.log("No database connection for location lookup");
+      return null;
+    }
+
+    try {
+      // Get all active stores with coordinates
+      const stores = await this.prisma.store.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+          zoneName: true,
+        },
+      });
+
+      if (stores.length === 0) {
+        console.log("No active stores found");
+        return null;
+      }
+
+      // Calculate distance to each store and find nearest
+      let nearestStore: typeof stores[0] | null = null;
+      let minDistance = Infinity;
+
+      for (const store of stores) {
+        if (store.latitude && store.longitude) {
+          const distance = this.calculateDistance(
+            location.latitude,
+            location.longitude,
+            store.latitude,
+            store.longitude
+          );
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestStore = store;
+          }
+        }
+      }
+
+      if (!nearestStore) {
+        console.log("Could not find nearest store");
+        return null;
+      }
+
+      console.log(`Nearest store: ${nearestStore.name} (${minDistance.toFixed(2)} km)`);
+
+      // Return flow data with store info
+      return {
+        flowData: {
+          selectedStoreCode: nearestStore.code,
+          selectedStoreName: nearestStore.name,
+          selectedStoreAddress: nearestStore.address,
+          storeName: nearestStore.name,
+          storeAddress: nearestStore.address,
+          locationDistance: Math.round(minDistance * 100) / 100,
+          userLatitude: location.latitude,
+          userLongitude: location.longitude,
+        },
+        storeId: nearestStore.id,
+      };
+    } catch (error) {
+      console.error("Error finding nearest store:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculates distance between two coordinates using Haversine formula
+   * @returns Distance in kilometers
+   */
+  private calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRad(deg: number): number {
+    return deg * (Math.PI / 180);
   }
 }

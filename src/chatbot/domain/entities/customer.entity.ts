@@ -2,6 +2,7 @@ export interface CustomerProps {
   id?: string;
   waId: string;
   name?: string;
+  nameConfirmed?: boolean;
   phone?: string;
   email?: string;
   createdAt?: Date;
@@ -12,6 +13,7 @@ export class Customer {
   readonly id?: string;
   readonly waId: string;
   readonly name?: string;
+  readonly nameConfirmed: boolean;
   readonly phone?: string;
   readonly email?: string;
   readonly createdAt?: Date;
@@ -21,6 +23,7 @@ export class Customer {
     this.id = props.id;
     this.waId = props.waId;
     this.name = props.name;
+    this.nameConfirmed = props.nameConfirmed ?? false;
     this.phone = props.phone;
     this.email = props.email;
     this.createdAt = props.createdAt;
@@ -28,6 +31,20 @@ export class Customer {
   }
 
   static create(waId: string, name?: string): Customer {
-    return new Customer({ waId, name });
+    return new Customer({ waId, name, nameConfirmed: false });
+  }
+
+  /**
+   * Verifica si el usuario es nuevo (no confirmó su nombre)
+   */
+  isNewUser(): boolean {
+    return !this.nameConfirmed;
+  }
+
+  /**
+   * Verifica si el usuario ya confirmó su nombre (recurrente)
+   */
+  isReturningUser(): boolean {
+    return this.nameConfirmed;
   }
 }

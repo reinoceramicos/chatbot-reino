@@ -10,6 +10,7 @@ const createMockCustomerRepository = (): jest.Mocked<CustomerRepositoryPort> => 
   findByWaId: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+  confirmName: jest.fn(),
 });
 
 const createMockConversationRepository = (): jest.Mocked<ConversationRepositoryPort> => ({
@@ -40,10 +41,12 @@ describe("BotService", () => {
   let autoResponseService: jest.Mocked<AutoResponseService>;
   let messageRepository: jest.Mocked<PrismaMessageRepository>;
 
+  // Mock customer with nameConfirmed: true (returning user) for most tests
   const mockCustomer = new Customer({
     id: "customer-123",
     waId: "5491155556666",
     name: "Test User",
+    nameConfirmed: true,
   });
 
   const mockConversation = new Conversation({
@@ -102,6 +105,7 @@ describe("BotService", () => {
           id: "customer-123",
           waId: "5491155556666",
           name: "Old Name",
+          nameConfirmed: true,
         });
         customerRepository.findByWaId.mockResolvedValue(existingCustomer);
         customerRepository.update.mockResolvedValue(existingCustomer);

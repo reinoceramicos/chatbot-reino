@@ -14,13 +14,14 @@ datasource db {
 // ============================================
 
 model Customer {
-  id        String   @id @default(cuid())
-  waId      String   @unique @map("wa_id") // Número de WhatsApp (ej: 5491123456789)
-  name      String? // Nombre del perfil de WhatsApp
-  phone     String? // Número formateado
-  email     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  waId          String   @unique @map("wa_id") // Número de WhatsApp (ej: 5491123456789)
+  name          String? // Nombre del perfil de WhatsApp
+  nameConfirmed Boolean  @default(false) @map("name_confirmed") // Si el usuario confirmó su nombre
+  phone         String? // Número formateado
+  email         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   conversations Conversation[]
   messages      Message[]

@@ -6,7 +6,6 @@ import { CustomerRepositoryPort } from "../../../domain/ports/customer.repositor
 import { ConversationRepositoryPort } from "../../../domain/ports/conversation.repository.port";
 import { PrismaMessageRepository } from "../../../infrastructure/repositories/prisma-message.repository";
 
-// Mocks
 const createMockCustomerRepository = (): jest.Mocked<CustomerRepositoryPort> => ({
   findByWaId: jest.fn(),
   create: jest.fn(),
@@ -59,7 +58,6 @@ describe("BotService", () => {
     autoResponseService = createMockAutoResponseService();
     messageRepository = createMockMessageRepository();
 
-    // Default mock implementations
     customerRepository.findByWaId.mockResolvedValue(mockCustomer);
     customerRepository.create.mockResolvedValue(mockCustomer);
     conversationRepository.findActiveByCustomerId.mockResolvedValue(mockConversation);
@@ -174,86 +172,181 @@ describe("BotService", () => {
       });
     });
 
-    describe("intent detection and responses", () => {
-      it("should respond with welcome message for greetings", async () => {
+    describe("menu-driven flow", () => {
+      it("should start main menu flow for any text message", async () => {
         const result = await botService.processMessage(createMessageData({ content: "hola" }));
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.message).toContain("Bienvenido");
-      });
-
-      it("should start quotation flow for sale interest", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "quiero comprar ceramicos" }));
-
-        expect(result.shouldRespond).toBe(true);
-        // Ahora inicia un flujo de cotización en lugar de transferir directamente
         expect(result.interactiveMessage).toBeDefined();
-        expect(conversationRepository.updateFlow).toHaveBeenCalled();
+        expect(conversationRepository.updateFlow).toHaveBeenCalledWith(
+          "conv-123",
+          expect.objectContaining({
+            flowType: "main_menu",
+          })
+        );
       });
 
-      it("should respond with farewell and resolve conversation", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "chau" }));
-
-        expect(result.shouldRespond).toBe(true);
-        expect(result.message).toContain("Hasta pronto");
-        expect(conversationRepository.resolve).toHaveBeenCalledWith("conv-123");
-      });
-
-      it("should respond with thanks message", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "muchas gracias" }));
-
-        expect(result.shouldRespond).toBe(true);
-        expect(result.message).toContain("De nada");
-      });
-
-      it("should use auto-response if matched and no intent flow", async () => {
-        autoResponseService.findMatch.mockResolvedValue({
-          matched: true,
-          response: "Respuesta automática",
-          category: "general",
-        });
-
-        // Usar un mensaje que no sea detectado como QUESTION ni SALE_INTEREST
-        const result = await botService.processMessage(createMessageData({ content: "algo random sin intent" }));
-
-        expect(result.shouldRespond).toBe(true);
-        // El fallback se muestra porque el mensaje no tiene una respuesta automática que coincida
-        // y no coincide con ninguna intención conocida
-      });
-
-      it("should start info flow for question intent", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "horario de atencion" }));
-
-        expect(result.shouldRespond).toBe(true);
-        // Ahora inicia un flujo de info en lugar de usar auto-respuesta
-        expect(result.interactiveMessage).toBeDefined();
-        expect(conversationRepository.updateFlow).toHaveBeenCalled();
-      });
-
-      it("should respond with fallback for unknown messages", async () => {
+      it("should start main menu flow regardless of message content", async () => {
         const result = await botService.processMessage(createMessageData({ content: "asdfghjkl" }));
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.message).toContain("vendedor");
+        expect(result.interactiveMessage).toBeDefined();
+        expect(conversationRepository.updateFlow).toHaveBeenCalledWith(
+          "conv-123",
+          expect.objectContaining({
+            flowType: "main_menu",
+          })
+        );
+      });
+
+      it("should return interactive message with buttons", async () => {
+        const result = await botService.processMessage(createMessageData());
+
+        expect(result.interactiveMessage).toBeDefined();
+        expect(result.interactiveMessage?.type).toBe("interactive");
+      });
+    });
+
+    describe("active flow processing", () => {
+      it("should process flow when conversation has active flow", async () => {
+        const conversationWithFlow = new Conversation({
+          id: "conv-123",
+          customerId: "customer-123",
+          status: "BOT",
+          flowType: "main_menu",
+          flowStep: "welcome",
+          flowStartedAt: new Date(),
+        });
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+
+        const result = await botService.processMessage(
+          createMessageData({
+            messageType: "interactive",
+            interactiveReplyId: "menu_comprar",
+            interactiveReplyTitle: "Quiero comprar",
+          })
+        );
+
+        expect(result.shouldRespond).toBe(true);
+      });
+
+      it("should switch to quotation flow when user selects buy option", async () => {
+        const conversationWithFlow = new Conversation({
+          id: "conv-123",
+          customerId: "customer-123",
+          status: "BOT",
+          flowType: "main_menu",
+          flowStep: "welcome",
+          flowStartedAt: new Date(),
+        });
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+
+        const result = await botService.processMessage(
+          createMessageData({
+            messageType: "interactive",
+            interactiveReplyId: "menu_comprar",
+            interactiveReplyTitle: "Quiero comprar",
+          })
+        );
+
+        expect(result.shouldRespond).toBe(true);
+        expect(conversationRepository.updateFlow).toHaveBeenCalledWith(
+          "conv-123",
+          expect.objectContaining({
+            flowType: "quotation",
+          })
+        );
+      });
+
+      it("should switch to info flow when user selects consultation option", async () => {
+        const conversationWithFlow = new Conversation({
+          id: "conv-123",
+          customerId: "customer-123",
+          status: "BOT",
+          flowType: "main_menu",
+          flowStep: "welcome",
+          flowStartedAt: new Date(),
+        });
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+
+        const result = await botService.processMessage(
+          createMessageData({
+            messageType: "interactive",
+            interactiveReplyId: "menu_consultas",
+            interactiveReplyTitle: "Tengo consultas",
+          })
+        );
+
+        expect(result.shouldRespond).toBe(true);
+        expect(conversationRepository.updateFlow).toHaveBeenCalledWith(
+          "conv-123",
+          expect.objectContaining({
+            flowType: "info",
+          })
+        );
+      });
+
+      it("should transfer to agent when user selects talk to seller option", async () => {
+        const conversationWithFlow = new Conversation({
+          id: "conv-123",
+          customerId: "customer-123",
+          status: "BOT",
+          flowType: "main_menu",
+          flowStep: "welcome",
+          flowStartedAt: new Date(),
+        });
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+
+        const result = await botService.processMessage(
+          createMessageData({
+            messageType: "interactive",
+            interactiveReplyId: "menu_vendedor",
+            interactiveReplyTitle: "Hablar con vendedor",
+          })
+        );
+
+        expect(result.shouldRespond).toBe(true);
+        expect(result.transferToAgent).toBe(true);
+        expect(conversationRepository.updateStatus).toHaveBeenCalledWith("conv-123", "WAITING");
+      });
+
+      it("should cancel flow when user sends cancel command", async () => {
+        const conversationWithFlow = new Conversation({
+          id: "conv-123",
+          customerId: "customer-123",
+          status: "BOT",
+          flowType: "quotation",
+          flowStep: "select_store",
+          flowStartedAt: new Date(),
+        });
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+
+        const result = await botService.processMessage(
+          createMessageData({ content: "cancelar" })
+        );
+
+        expect(result.shouldRespond).toBe(true);
+        expect(conversationRepository.clearFlow).toHaveBeenCalledWith("conv-123");
       });
     });
 
     describe("non-text messages", () => {
-      it("should respond with fallback for image messages", async () => {
+      it("should start main menu for image messages", async () => {
         const result = await botService.processMessage(
           createMessageData({ messageType: "image", content: undefined })
         );
 
         expect(result.shouldRespond).toBe(true);
-        expect(result.message).toContain("vendedor");
+        expect(result.interactiveMessage).toBeDefined();
       });
 
-      it("should respond with fallback for audio messages", async () => {
+      it("should start main menu for audio messages", async () => {
         const result = await botService.processMessage(
           createMessageData({ messageType: "audio", content: undefined })
         );
 
         expect(result.shouldRespond).toBe(true);
+        expect(result.interactiveMessage).toBeDefined();
       });
     });
   });

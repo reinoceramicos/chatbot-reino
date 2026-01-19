@@ -4,12 +4,12 @@ import { Conversation, FlowType } from "../../domain/entities/conversation.entit
 import { CustomerRepositoryPort } from "../../domain/ports/customer.repository.port";
 import { ConversationRepositoryPort } from "../../domain/ports/conversation.repository.port";
 import { AutoResponseService } from "./auto-response.service";
-import { IntentDetectorService } from "./intent-detector.service";
 import { FlowManagerService } from "./flow-manager.service";
-import { PrismaMessageRepository, SaveMessageParams } from "../../infrastructure/repositories/prisma-message.repository";
+import { PrismaMessageRepository } from "../../infrastructure/repositories/prisma-message.repository";
 import { Message } from "../../../messaging/domain/entities/message.entity";
 import { quotationFlow } from "../flows/quotation.flow";
 import { infoFlow } from "../flows/info.flow";
+import { mainMenuFlow } from "../flows/main-menu.flow";
 
 export interface IncomingMessageData {
   waId: string;
@@ -33,17 +33,12 @@ export interface BotResponse {
   customerId: string;
 }
 
-// Mensajes predeterminados
 const DEFAULT_MESSAGES = {
-  WELCOME: "¡Hola! 👋 Bienvenido a Reino Cerámicos. ¿En qué podemos ayudarte hoy?",
   TRANSFER_TO_AGENT: "Entendido, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌",
-  FALLBACK: "Gracias por tu mensaje. Si necesitas hablar con un vendedor, escribí *vendedor* o *cotizar*.",
-  FAREWELL: "¡Gracias por contactarnos! Si necesitas algo más, no dudes en escribirnos. ¡Hasta pronto! 👋",
-  THANKS: "¡De nada! Estamos para ayudarte. 😊",
+  FALLBACK: "No pude procesar tu mensaje. Por favor, usá las opciones del menú.",
 };
 
 export class BotService {
-  private readonly intentDetector: IntentDetectorService;
   private readonly flowManager: FlowManagerService;
 
   constructor(
@@ -54,10 +49,9 @@ export class BotService {
     private readonly prisma?: PrismaClient,
     flowManager?: FlowManagerService
   ) {
-    this.intentDetector = new IntentDetectorService();
     this.flowManager = flowManager || new FlowManagerService();
 
-    // Registrar flujos disponibles
+    this.flowManager.registerFlow("main_menu", mainMenuFlow);
     this.flowManager.registerFlow("quotation", quotationFlow);
     this.flowManager.registerFlow("info", infoFlow);
   }
@@ -116,14 +110,6 @@ export class BotService {
       inputType = "text";
     }
 
-    console.log("[FLOW_DEBUG]", {
-      flowType: conversation.flowType,
-      flowStep: conversation.flowStep,
-      input,
-      inputType,
-      interactiveReplyId: data.interactiveReplyId,
-    });
-
     // Verificar si es comando de cancelación
     if (this.flowManager.isCancelCommand(input)) {
       await this.conversationRepository.clearFlow(conversation.id!);
@@ -153,12 +139,26 @@ export class BotService {
       };
     }
 
+    // Manejar cambio de flujo (ej: FLOW:quotation)
+    if (result.switchToFlow) {
+      await this.conversationRepository.updateFlow(conversation.id!, {
+        flowType: result.switchToFlow as FlowType,
+        flowStep: result.newFlowStep,
+        flowData: result.newFlowData,
+        flowStartedAt: new Date(),
+      });
+      return {
+        ...baseResponse,
+        shouldRespond: true,
+        interactiveMessage: result.message,
+      };
+    }
+
     // Actualizar estado del flujo
     if (result.flowCompleted) {
       await this.conversationRepository.clearFlow(conversation.id!);
 
       if (result.transferToAgent) {
-        // Guardar storeId si existe en flowData
         const storeCode = result.newFlowData?.selectedStoreCode;
         if (storeCode && this.prisma) {
           const store = await this.prisma.store.findFirst({
@@ -250,115 +250,9 @@ export class BotService {
       customerId: customer.id!,
     };
 
-    // Solo procesar mensajes de texto
-    if (data.messageType !== "text" || !data.content) {
-      return {
-        ...baseResponse,
-        shouldRespond: true,
-        message: DEFAULT_MESSAGES.FALLBACK,
-      };
-    }
-
-    const messageText = data.content;
-
-    // Detectar intención
-    const intent = this.intentDetector.detect(messageText);
-
-    // Si es intención de venta, iniciar flujo de cotización
-    if (intent.intent === "SALE_INTEREST") {
-      return this.startFlowForIntent("quotation", data.waId, conversation, baseResponse);
-    }
-
-    // Si es pregunta (QUESTION), responder directamente o mostrar menú
-    if (intent.intent === "QUESTION") {
-      // Si detectamos un tema específico, responder directamente sin menú
-      if (intent.questionTopic) {
-        return this.respondToQuestionTopic(intent.questionTopic, data.waId, conversation, baseResponse);
-      }
-      // Si no hay tema específico, mostrar el menú de opciones
-      return this.startFlowForIntent("info", data.waId, conversation, baseResponse);
-    }
-
-    // Buscar respuesta automática
-    const autoMatch = await this.autoResponseService.findMatch(messageText);
-    if (autoMatch.matched && autoMatch.response) {
-      return {
-        ...baseResponse,
-        shouldRespond: true,
-        message: autoMatch.response,
-      };
-    }
-
-    // Respuestas por intención
-    switch (intent.intent) {
-      case "GREETING":
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: DEFAULT_MESSAGES.WELCOME,
-        };
-
-      case "FAREWELL":
-        await this.conversationRepository.resolve(conversation.id!);
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: DEFAULT_MESSAGES.FAREWELL,
-        };
-
-      case "THANKS":
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: DEFAULT_MESSAGES.THANKS,
-        };
-
-      case "COMPLAINT":
-        // Para quejas, transferir directamente a un agente
-        await this.conversationRepository.updateStatus(conversation.id!, "WAITING");
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: "Lamentamos que hayas tenido un problema. Un vendedor te contactará para ayudarte. 🙏",
-          transferToAgent: true,
-        };
-
-      default:
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: DEFAULT_MESSAGES.FALLBACK,
-        };
-    }
-  }
-
-  private async startFlowForIntent(
-    flowType: FlowType,
-    waId: string,
-    conversation: Conversation,
-    baseResponse: { conversationId: string; customerId: string }
-  ): Promise<BotResponse> {
-    if (!flowType) {
-      return {
-        ...baseResponse,
-        shouldRespond: true,
-        message: DEFAULT_MESSAGES.FALLBACK,
-      };
-    }
-
-    const flowResult = await this.flowManager.startFlow(flowType, waId);
+    const flowResult = await this.flowManager.startFlow("main_menu", data.waId);
 
     if (!flowResult) {
-      // No se pudo iniciar el flujo, usar respuesta legacy
-      if (flowType === "quotation") {
-        await this.conversationRepository.updateStatus(conversation.id!, "WAITING");
-        return {
-          ...baseResponse,
-          shouldRespond: true,
-          message: DEFAULT_MESSAGES.TRANSFER_TO_AGENT,
-          transferToAgent: true,
-        };
-      }
       return {
         ...baseResponse,
         shouldRespond: true,
@@ -366,9 +260,8 @@ export class BotService {
       };
     }
 
-    // Guardar estado del flujo
     await this.conversationRepository.updateFlow(conversation.id!, {
-      flowType,
+      flowType: "main_menu",
       flowStep: flowResult.newFlowStep,
       flowData: flowResult.newFlowData,
       flowStartedAt: new Date(),
@@ -379,95 +272,6 @@ export class BotService {
       shouldRespond: true,
       interactiveMessage: flowResult.message,
     };
-  }
-
-  /**
-   * Responde directamente a una pregunta con tema específico sin mostrar menú
-   */
-  private async respondToQuestionTopic(
-    topic: string,
-    waId: string,
-    conversation: Conversation,
-    baseResponse: { conversationId: string; customerId: string }
-  ): Promise<BotResponse> {
-    const responses: Record<string, string> = {
-      horarios: `🕐 *Horarios de atención*
-
-📅 Lunes a Viernes: 8:00 a 18:00 hs
-📅 Sábados: 8:00 a 13:00 hs
-📅 Domingos y feriados: Cerrado
-
-¡Te esperamos!`,
-
-      ubicacion: `📍 *Ubicación*
-
-Dirección: Av. Ejemplo 1234, Ciudad
-(A 2 cuadras de la estación de tren)
-
-🚗 Estacionamiento disponible
-🚌 Líneas de colectivo: 45, 67, 123
-
-📌 Google Maps: [Link a ubicación]`,
-
-      contacto: `📞 *Contacto*
-
-📱 WhatsApp: +54 9 11 1234-5678
-☎️ Teléfono: (011) 1234-5678
-📧 Email: ventas@reinoceramicos.com
-
-🌐 Redes sociales:
-• Instagram: @reinoceramicos
-• Facebook: /reinoceramicos`,
-
-      envios: `🚚 *Envíos*
-
-✅ Envíos a todo el país
-✅ Entregas en CABA y GBA en 24-48hs
-✅ Interior: 3-5 días hábiles
-
-💰 Costo de envío:
-• CABA: Consultar
-• GBA: Consultar según zona
-• Interior: A cargo del comprador
-
-📦 Retiro en local: Sin cargo`,
-
-      pagos: `💳 *Formas de pago*
-
-✅ Efectivo
-✅ Transferencia bancaria
-✅ Mercado Pago
-✅ Tarjetas de débito
-✅ Tarjetas de crédito (hasta 12 cuotas)
-
-📌 Consultar promociones vigentes con tarjetas`,
-
-      garantia: `🛡️ *Garantía*
-
-✅ Garantía de fábrica en todos los productos
-✅ 30 días para cambios por defectos
-✅ Productos sellados y en perfecto estado
-
-📋 Requisitos para cambios:
-• Presentar ticket/factura
-• Producto sin uso
-• Embalaje original
-
-❓ Consultas: ventas@reinoceramicos.com`,
-    };
-
-    const response = responses[topic];
-
-    if (response) {
-      return {
-        ...baseResponse,
-        shouldRespond: true,
-        message: response,
-      };
-    }
-
-    // Si el topic no está mapeado, iniciar el flujo de info con menú
-    return this.startFlowForIntent("info", waId, conversation, baseResponse);
   }
 
   async saveOutgoingMessage(

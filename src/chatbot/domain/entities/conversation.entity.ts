@@ -1,5 +1,5 @@
 export type ConversationStatus = "BOT" | "WAITING" | "ASSIGNED" | "RESOLVED";
-export type FlowType = "quotation" | "info" | null;
+export type FlowType = "main_menu" | "quotation" | "info" | null;
 
 export interface FlowData {
   [key: string]: any;

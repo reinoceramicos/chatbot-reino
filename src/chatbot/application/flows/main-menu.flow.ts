@@ -1,4 +1,8 @@
-import { Flow, FlowStep, FlowStepPrompt } from "../../domain/entities/flow.entity";
+import {
+  Flow,
+  FlowStep,
+  FlowStepPrompt,
+} from "../../domain/entities/flow.entity";
 import { getStoreService } from "../services/store.service";
 
 const steps = new Map<string, FlowStep>();
@@ -16,7 +20,7 @@ steps.set("welcome", {
       body: greeting,
       buttons: [
         { id: "menu_comprar", title: "Quiero comprar" },
-        { id: "menu_consultas", title: "Tengo consultas" },
+        { id: "menu_consultas", title: "Consultas frecuentes" },
       ],
     };
   },
@@ -75,7 +79,9 @@ steps.set("select_zone", {
     sections: [
       {
         title: "Capital Federal",
-        rows: [{ id: "CABA", title: "CABA", description: "Paternal, Villa Crespo" }],
+        rows: [
+          { id: "CABA", title: "CABA", description: "Paternal, Villa Crespo" },
+        ],
       },
       {
         title: "Zona Norte",
@@ -109,7 +115,13 @@ steps.set("select_zone", {
       },
       {
         title: "Zona Sur",
-        rows: [{ id: "ZONA_SUR", title: "Zona Sur", description: "Cañuelas, Berazategui" }],
+        rows: [
+          {
+            id: "ZONA_SUR",
+            title: "Zona Sur",
+            description: "Cañuelas, Berazategui",
+          },
+        ],
       },
       {
         title: "Zona Norte Lejano",
@@ -130,7 +142,9 @@ steps.set("select_zone", {
 
 steps.set("select_store", {
   id: "select_store",
-  dynamicPrompt: async (flowData: Record<string, any>): Promise<FlowStepPrompt> => {
+  dynamicPrompt: async (
+    flowData: Record<string, any>,
+  ): Promise<FlowStepPrompt> => {
     const storeService = getStoreService();
     const selectedZone = flowData.selectedZone as string;
 
@@ -139,16 +153,20 @@ steps.set("select_store", {
     const rows = stores.map((store) => ({
       id: store.code,
       title: store.name,
-      description: store.address.length > 72 ? store.address.substring(0, 69) + "..." : store.address,
+      description:
+        store.address.length > 72
+          ? store.address.substring(0, 69) + "..."
+          : store.address,
     }));
 
     const maxRows = Math.min(rows.length, 10);
 
     return {
       type: "list",
-      body: stores.length > 0
-        ? "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?"
-        : "Estos son nuestros Reinos disponibles. ¿Cuál te queda más cómodo?",
+      body:
+        stores.length > 0
+          ? "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?"
+          : "Estos son nuestros Reinos disponibles. ¿Cuál te queda más cómodo?",
       buttonText: "Ver Reinos",
       sections: [
         {
@@ -165,9 +183,23 @@ steps.set("select_store", {
 
 steps.set("transfer_to_agent", {
   id: "transfer_to_agent",
-  prompt: {
-    type: "text",
-    body: "Perfecto, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌",
+  dynamicPrompt: async (flowData: Record<string, any>) => {
+    const storeService = getStoreService();
+    const storeName = flowData.assignedStoreName || flowData.selectedStoreName;
+    const storeCode = flowData.assignedStoreCode || flowData.selectedStoreCode;
+
+    let storeInfo = "";
+    if (storeName) {
+      storeInfo = ` de *${storeName}*`;
+    } else if (storeCode) {
+      const store = await storeService.getStoreByCode(storeCode);
+      storeInfo = store ? ` de *${store.name}*` : "";
+    }
+
+    return {
+      type: "text",
+      body: `Perfecto, un vendedor${storeInfo} te va a contactar por acá. 🙌`,
+    };
   },
   expectedInput: "none",
   transferToAgent: true,
@@ -181,7 +213,7 @@ steps.set("return_to_menu", {
     body: "¿Hay algo más en lo que pueda ayudarte?",
     buttons: [
       { id: "menu_comprar", title: "Quiero comprar" },
-      { id: "menu_consultas", title: "Tengo consultas" },
+      { id: "menu_consultas", title: "Consultas frecuentes" },
       { id: "menu_finalizar", title: "No, gracias" },
     ],
   },

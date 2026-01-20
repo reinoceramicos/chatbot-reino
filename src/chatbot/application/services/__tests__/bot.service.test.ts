@@ -6,33 +6,37 @@ import { CustomerRepositoryPort } from "../../../domain/ports/customer.repositor
 import { ConversationRepositoryPort } from "../../../domain/ports/conversation.repository.port";
 import { PrismaMessageRepository } from "../../../infrastructure/repositories/prisma-message.repository";
 
-const createMockCustomerRepository = (): jest.Mocked<CustomerRepositoryPort> => ({
-  findByWaId: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  confirmName: jest.fn(),
-});
+const createMockCustomerRepository =
+  (): jest.Mocked<CustomerRepositoryPort> => ({
+    findByWaId: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    confirmName: jest.fn(),
+  });
 
-const createMockConversationRepository = (): jest.Mocked<ConversationRepositoryPort> => ({
-  findById: jest.fn(),
-  findActiveByCustomerId: jest.fn(),
-  create: jest.fn(),
-  updateStatus: jest.fn(),
-  updateStoreId: jest.fn(),
-  resolve: jest.fn(),
-  updateFlow: jest.fn(),
-  clearFlow: jest.fn(),
-});
+const createMockConversationRepository =
+  (): jest.Mocked<ConversationRepositoryPort> => ({
+    findById: jest.fn(),
+    findActiveByCustomerId: jest.fn(),
+    create: jest.fn(),
+    updateStatus: jest.fn(),
+    updateStoreId: jest.fn(),
+    resolve: jest.fn(),
+    updateFlow: jest.fn(),
+    clearFlow: jest.fn(),
+  });
 
-const createMockAutoResponseService = (): jest.Mocked<AutoResponseService> => ({
-  findMatch: jest.fn().mockResolvedValue({ matched: false }),
-  reloadCache: jest.fn(),
-} as any);
+const createMockAutoResponseService = (): jest.Mocked<AutoResponseService> =>
+  ({
+    findMatch: jest.fn().mockResolvedValue({ matched: false }),
+    reloadCache: jest.fn(),
+  }) as any;
 
-const createMockMessageRepository = (): jest.Mocked<PrismaMessageRepository> => ({
-  save: jest.fn().mockResolvedValue(undefined),
-  findByConversationId: jest.fn(),
-} as any);
+const createMockMessageRepository = (): jest.Mocked<PrismaMessageRepository> =>
+  ({
+    save: jest.fn().mockResolvedValue(undefined),
+    findByConversationId: jest.fn(),
+  }) as any;
 
 describe("BotService", () => {
   let botService: BotService;
@@ -63,19 +67,23 @@ describe("BotService", () => {
 
     customerRepository.findByWaId.mockResolvedValue(mockCustomer);
     customerRepository.create.mockResolvedValue(mockCustomer);
-    conversationRepository.findActiveByCustomerId.mockResolvedValue(mockConversation);
+    conversationRepository.findActiveByCustomerId.mockResolvedValue(
+      mockConversation,
+    );
     conversationRepository.create.mockResolvedValue(mockConversation);
 
     botService = new BotService(
       customerRepository,
       conversationRepository,
       autoResponseService,
-      messageRepository
+      messageRepository,
     );
   });
 
   describe("processMessage", () => {
-    const createMessageData = (overrides: Partial<IncomingMessageData> = {}): IncomingMessageData => ({
+    const createMessageData = (
+      overrides: Partial<IncomingMessageData> = {},
+    ): IncomingMessageData => ({
       waId: "5491155556666",
       waMessageId: "wamid.123",
       senderName: "Test User",
@@ -96,7 +104,9 @@ describe("BotService", () => {
       it("should use existing customer if found", async () => {
         await botService.processMessage(createMessageData());
 
-        expect(customerRepository.findByWaId).toHaveBeenCalledWith("5491155556666");
+        expect(customerRepository.findByWaId).toHaveBeenCalledWith(
+          "5491155556666",
+        );
         expect(customerRepository.create).not.toHaveBeenCalled();
       });
 
@@ -110,9 +120,13 @@ describe("BotService", () => {
         customerRepository.findByWaId.mockResolvedValue(existingCustomer);
         customerRepository.update.mockResolvedValue(existingCustomer);
 
-        await botService.processMessage(createMessageData({ senderName: "New Name" }));
+        await botService.processMessage(
+          createMessageData({ senderName: "New Name" }),
+        );
 
-        expect(customerRepository.update).toHaveBeenCalledWith("customer-123", { name: "New Name" });
+        expect(customerRepository.update).toHaveBeenCalledWith("customer-123", {
+          name: "New Name",
+        });
       });
     });
 
@@ -128,14 +142,18 @@ describe("BotService", () => {
       it("should use existing conversation if found", async () => {
         await botService.processMessage(createMessageData());
 
-        expect(conversationRepository.findActiveByCustomerId).toHaveBeenCalledWith("customer-123");
+        expect(
+          conversationRepository.findActiveByCustomerId,
+        ).toHaveBeenCalledWith("customer-123");
         expect(conversationRepository.create).not.toHaveBeenCalled();
       });
     });
 
     describe("message saving", () => {
       it("should save incoming message", async () => {
-        await botService.processMessage(createMessageData({ content: "test message" }));
+        await botService.processMessage(
+          createMessageData({ content: "test message" }),
+        );
 
         expect(messageRepository.save).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -143,7 +161,7 @@ describe("BotService", () => {
             customerId: "customer-123",
             direction: "INBOUND",
             content: "test message",
-          })
+          }),
         );
       });
     });
@@ -155,7 +173,9 @@ describe("BotService", () => {
           customerId: "customer-123",
           status: "ASSIGNED",
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(assignedConversation);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          assignedConversation,
+        );
 
         const result = await botService.processMessage(createMessageData());
 
@@ -168,7 +188,9 @@ describe("BotService", () => {
           customerId: "customer-123",
           status: "WAITING",
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(waitingConversation);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          waitingConversation,
+        );
 
         const result = await botService.processMessage(createMessageData());
 
@@ -178,7 +200,9 @@ describe("BotService", () => {
 
     describe("menu-driven flow", () => {
       it("should start main menu flow for any text message", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "hola" }));
+        const result = await botService.processMessage(
+          createMessageData({ content: "hola" }),
+        );
 
         expect(result.shouldRespond).toBe(true);
         expect(result.interactiveMessage).toBeDefined();
@@ -186,12 +210,14 @@ describe("BotService", () => {
           "conv-123",
           expect.objectContaining({
             flowType: "main_menu",
-          })
+          }),
         );
       });
 
       it("should start main menu flow regardless of message content", async () => {
-        const result = await botService.processMessage(createMessageData({ content: "asdfghjkl" }));
+        const result = await botService.processMessage(
+          createMessageData({ content: "asdfghjkl" }),
+        );
 
         expect(result.shouldRespond).toBe(true);
         expect(result.interactiveMessage).toBeDefined();
@@ -199,7 +225,7 @@ describe("BotService", () => {
           "conv-123",
           expect.objectContaining({
             flowType: "main_menu",
-          })
+          }),
         );
       });
 
@@ -221,14 +247,16 @@ describe("BotService", () => {
           flowStep: "welcome",
           flowStartedAt: new Date(),
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          conversationWithFlow,
+        );
 
         const result = await botService.processMessage(
           createMessageData({
             messageType: "interactive",
             interactiveReplyId: "menu_comprar",
             interactiveReplyTitle: "Quiero comprar",
-          })
+          }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -243,14 +271,16 @@ describe("BotService", () => {
           flowStep: "welcome",
           flowStartedAt: new Date(),
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          conversationWithFlow,
+        );
 
         const result = await botService.processMessage(
           createMessageData({
             messageType: "interactive",
             interactiveReplyId: "menu_comprar",
             interactiveReplyTitle: "Quiero comprar",
-          })
+          }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -258,7 +288,7 @@ describe("BotService", () => {
           "conv-123",
           expect.objectContaining({
             flowType: "quotation",
-          })
+          }),
         );
       });
 
@@ -271,14 +301,16 @@ describe("BotService", () => {
           flowStep: "welcome",
           flowStartedAt: new Date(),
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          conversationWithFlow,
+        );
 
         const result = await botService.processMessage(
           createMessageData({
             messageType: "interactive",
             interactiveReplyId: "menu_consultas",
-            interactiveReplyTitle: "Tengo consultas",
-          })
+            interactiveReplyTitle: "Consultas frecuentes",
+          }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -286,7 +318,7 @@ describe("BotService", () => {
           "conv-123",
           expect.objectContaining({
             flowType: "info",
-          })
+          }),
         );
       });
 
@@ -299,14 +331,16 @@ describe("BotService", () => {
           flowStep: "welcome",
           flowStartedAt: new Date(),
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          conversationWithFlow,
+        );
 
         const result = await botService.processMessage(
           createMessageData({
             messageType: "interactive",
             interactiveReplyId: "menu_vendedor",
             interactiveReplyTitle: "Hablar con vendedor",
-          })
+          }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -315,7 +349,7 @@ describe("BotService", () => {
           "conv-123",
           expect.objectContaining({
             flowStep: "ask_location_method",
-          })
+          }),
         );
       });
 
@@ -328,21 +362,25 @@ describe("BotService", () => {
           flowStep: "select_store",
           flowStartedAt: new Date(),
         });
-        conversationRepository.findActiveByCustomerId.mockResolvedValue(conversationWithFlow);
+        conversationRepository.findActiveByCustomerId.mockResolvedValue(
+          conversationWithFlow,
+        );
 
         const result = await botService.processMessage(
-          createMessageData({ content: "cancelar" })
+          createMessageData({ content: "cancelar" }),
         );
 
         expect(result.shouldRespond).toBe(true);
-        expect(conversationRepository.clearFlow).toHaveBeenCalledWith("conv-123");
+        expect(conversationRepository.clearFlow).toHaveBeenCalledWith(
+          "conv-123",
+        );
       });
     });
 
     describe("non-text messages", () => {
       it("should start main menu for image messages", async () => {
         const result = await botService.processMessage(
-          createMessageData({ messageType: "image", content: undefined })
+          createMessageData({ messageType: "image", content: undefined }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -351,7 +389,7 @@ describe("BotService", () => {
 
       it("should start main menu for audio messages", async () => {
         const result = await botService.processMessage(
-          createMessageData({ messageType: "audio", content: undefined })
+          createMessageData({ messageType: "audio", content: undefined }),
         );
 
         expect(result.shouldRespond).toBe(true);
@@ -362,7 +400,11 @@ describe("BotService", () => {
 
   describe("saveOutgoingMessage", () => {
     it("should save outgoing bot message", async () => {
-      await botService.saveOutgoingMessage("conv-123", "customer-123", "Hello response");
+      await botService.saveOutgoingMessage(
+        "conv-123",
+        "customer-123",
+        "Hello response",
+      );
 
       expect(messageRepository.save).toHaveBeenCalledWith({
         conversationId: "conv-123",

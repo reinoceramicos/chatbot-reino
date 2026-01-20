@@ -101,7 +101,7 @@ steps.set("waiting_location", {
   },
   expectedInput: "any", // Puede ser location o text (si escribe "zona")
   saveAs: "locationInput",
-  nextStep: "ask_contact", // El procesamiento de ubicación se hace en bot.service
+  nextStep: "transfer_to_agent", // El procesamiento de ubicación se hace en bot.service
 });
 
 // Step 3d: Seleccionar zona manualmente
@@ -114,34 +114,50 @@ steps.set("select_zone", {
     sections: [
       {
         title: "Capital Federal",
+        rows: [{ id: "CABA", title: "CABA", description: "Paternal, Villa Crespo" }],
+      },
+      {
+        title: "Zona Norte",
         rows: [
-          { id: "zone_caba_norte", title: "CABA Norte", description: "Belgrano, Palermo, Núñez" },
-          { id: "zone_caba_centro", title: "CABA Centro", description: "Caballito, Almagro, Boedo" },
-          { id: "zone_caba_oeste", title: "CABA Oeste", description: "Flores, Liniers, Mataderos" },
+          {
+            id: "ZONA_NORTE",
+            title: "Zona Norte",
+            description: "San Martín, Tigre, Nordelta, Maschwitz",
+          },
         ],
       },
       {
-        title: "Zona Norte GBA",
+        title: "Zona Noroeste",
         rows: [
-          { id: "zone_norte_gba", title: "Zona Norte GBA", description: "Vicente López, San Isidro, Tigre" },
+          {
+            id: "ZONA_NOROESTE",
+            title: "Zona Noroeste",
+            description: "Pilar, San Miguel, José C. Paz, Bella Vista",
+          },
         ],
       },
       {
-        title: "Zona Sur GBA",
+        title: "Zona Oeste",
         rows: [
-          { id: "zone_sur", title: "Zona Sur", description: "Quilmes, Lanús, Avellaneda, Lomas" },
+          {
+            id: "ZONA_OESTE",
+            title: "Zona Oeste",
+            description: "Moreno, Gral Rodriguez, Francisco Alvarez, Luján",
+          },
         ],
       },
       {
-        title: "Zona Oeste GBA",
-        rows: [
-          { id: "zone_oeste", title: "Zona Oeste", description: "Morón, San Justo, Ituzaingó, Merlo" },
-        ],
+        title: "Zona Sur",
+        rows: [{ id: "ZONA_SUR", title: "Zona Sur", description: "Cañuelas, Berazategui" }],
       },
       {
-        title: "La Plata",
+        title: "Zona Norte Lejano",
         rows: [
-          { id: "zone_la_plata", title: "La Plata", description: "La Plata y alrededores" },
+          {
+            id: "ZONA_NORTE_LEJANO",
+            title: "Zona Norte Lejano",
+            description: "Campana, Capilla del Señor",
+          },
         ],
       },
     ],
@@ -187,77 +203,34 @@ steps.set("select_store", {
   },
   expectedInput: "list_reply",
   saveAs: "selectedStoreCode",
-  nextStep: "ask_contact",
+  nextStep: "transfer_to_agent",
 });
 
-// Step 4: Forma de contacto preferida
-steps.set("ask_contact", {
-  id: "ask_contact",
-  prompt: {
-    type: "button",
-    body: "¿Cómo preferís que te contactemos con la cotización?",
-    buttons: [
-      { id: "contact_whatsapp", title: "Por WhatsApp" },
-      { id: "contact_email", title: "Por Email" },
-      { id: "contact_call", title: "Llamada" },
-    ],
-  },
-  expectedInput: "button_reply",
-  saveAs: "contactPreference",
-  nextStep: (input: string, flowData: Record<string, any>) => {
-    if (input === "contact_email") {
-      return "ask_email";
+// Step final: Transferir a vendedor
+steps.set("transfer_to_agent", {
+  id: "transfer_to_agent",
+  dynamicPrompt: async (flowData: Record<string, any>) => {
+    const storeService = getStoreService();
+    const storeName = flowData.assignedStoreName || flowData.selectedStoreName;
+    const storeCode = flowData.assignedStoreCode || flowData.selectedStoreCode;
+
+    let storeInfo = "";
+    if (storeName) {
+      storeInfo = `*${storeName}*`;
+    } else if (storeCode) {
+      const store = await storeService.getStoreByCode(storeCode);
+      storeInfo = store ? `*${store.name}*` : "el Reino más cercano";
+    } else {
+      storeInfo = "el Reino más cercano";
     }
-    return "confirm";
-  },
-});
 
-// Step 4b: Pedir email si eligió esa opción
-steps.set("ask_email", {
-  id: "ask_email",
-  prompt: {
-    type: "text",
-    body: "Por favor, indicame tu email para enviarte la cotización:",
+    return {
+      type: "text",
+      body: `¡Listo! Un vendedor de ${storeInfo} te va a contactar por acá para prepararte la cotización. 🙌`,
+    };
   },
-  expectedInput: "text",
-  validation: (input: string) => {
-    // Validación básica de email
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
-  },
-  errorMessage: "El email no parece válido. Por favor, ingresá un email correcto.",
-  saveAs: "email",
-  nextStep: "confirm",
-});
-
-// Step 5: Confirmar y finalizar
-steps.set("confirm", {
-  id: "confirm",
-  prompt: {
-    type: "button",
-    body: "¡Perfecto! Voy a pasar tu consulta a un vendedor que te preparará la cotización. ¿Confirmamos?",
-    footer: "Un vendedor te contactará a la brevedad",
-    buttons: [
-      { id: "confirm_yes", title: "Sí, confirmar" },
-      { id: "confirm_no", title: "No, cancelar" },
-    ],
-  },
-  expectedInput: "button_reply",
-  nextStep: (input: string) => {
-    if (input === "confirm_yes") {
-      return "TRANSFER"; // Transferir a agente
-    }
-    return "cancelled";
-  },
-});
-
-// Step: Flujo cancelado
-steps.set("cancelled", {
-  id: "cancelled",
-  prompt: {
-    type: "text",
-    body: "Entendido, he cancelado la cotización. Si necesitas algo más, ¡estoy para ayudarte!",
-  },
-  expectedInput: "any",
+  expectedInput: "none",
+  transferToAgent: true,
   nextStep: "END",
 });
 

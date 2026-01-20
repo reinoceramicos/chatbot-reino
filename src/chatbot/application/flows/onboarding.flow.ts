@@ -22,7 +22,7 @@ steps.set("confirm_name", {
       body: `¡Mucho gusto, *${userName}*! 🙌\n\n¿En qué podemos ayudarte hoy?`,
       buttons: [
         { id: "menu_comprar", title: "Quiero comprar" },
-        { id: "menu_consultas", title: "Tengo consultas" },
+        { id: "menu_consultas", title: "Consultas frecuentes" },
       ],
     };
   },

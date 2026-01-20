@@ -17,7 +17,6 @@ steps.set("welcome", {
       buttons: [
         { id: "menu_comprar", title: "Quiero comprar" },
         { id: "menu_consultas", title: "Tengo consultas" },
-        { id: "menu_vendedor", title: "Hablar con vendedor" },
       ],
     };
   },
@@ -28,8 +27,6 @@ steps.set("welcome", {
         return "FLOW:quotation";
       case "menu_consultas":
         return "FLOW:info";
-      case "menu_vendedor":
-        return "ask_location_method";
       default:
         return "welcome";
     }
@@ -78,34 +75,50 @@ steps.set("select_zone", {
     sections: [
       {
         title: "Capital Federal",
+        rows: [{ id: "CABA", title: "CABA", description: "Paternal, Villa Crespo" }],
+      },
+      {
+        title: "Zona Norte",
         rows: [
-          { id: "zone_caba_norte", title: "CABA Norte", description: "Belgrano, Palermo, Núñez" },
-          { id: "zone_caba_centro", title: "CABA Centro", description: "Caballito, Almagro, Boedo" },
-          { id: "zone_caba_oeste", title: "CABA Oeste", description: "Flores, Liniers, Mataderos" },
+          {
+            id: "ZONA_NORTE",
+            title: "Zona Norte",
+            description: "San Martín, Tigre, Nordelta, Maschwitz",
+          },
         ],
       },
       {
-        title: "Zona Norte GBA",
+        title: "Zona Noroeste",
         rows: [
-          { id: "zone_norte_gba", title: "Zona Norte GBA", description: "Vicente López, San Isidro, Tigre" },
+          {
+            id: "ZONA_NOROESTE",
+            title: "Zona Noroeste",
+            description: "Pilar, San Miguel, José C. Paz, Bella Vista",
+          },
         ],
       },
       {
-        title: "Zona Sur GBA",
+        title: "Zona Oeste",
         rows: [
-          { id: "zone_sur", title: "Zona Sur", description: "Quilmes, Lanús, Avellaneda, Lomas" },
+          {
+            id: "ZONA_OESTE",
+            title: "Zona Oeste",
+            description: "Moreno, Gral Rodriguez, Francisco Alvarez, Luján",
+          },
         ],
       },
       {
-        title: "Zona Oeste GBA",
-        rows: [
-          { id: "zone_oeste", title: "Zona Oeste", description: "Morón, San Justo, Ituzaingó, Merlo" },
-        ],
+        title: "Zona Sur",
+        rows: [{ id: "ZONA_SUR", title: "Zona Sur", description: "Cañuelas, Berazategui" }],
       },
       {
-        title: "La Plata",
+        title: "Zona Norte Lejano",
         rows: [
-          { id: "zone_la_plata", title: "La Plata", description: "La Plata y alrededores" },
+          {
+            id: "ZONA_NORTE_LEJANO",
+            title: "Zona Norte Lejano",
+            description: "Campana, Capilla del Señor",
+          },
         ],
       },
     ],

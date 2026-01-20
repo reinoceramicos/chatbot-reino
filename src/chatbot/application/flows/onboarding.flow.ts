@@ -23,7 +23,6 @@ steps.set("confirm_name", {
       buttons: [
         { id: "menu_comprar", title: "Quiero comprar" },
         { id: "menu_consultas", title: "Tengo consultas" },
-        { id: "menu_vendedor", title: "Hablar con vendedor" },
       ],
     };
   },
@@ -35,8 +34,6 @@ steps.set("confirm_name", {
         return "FLOW:quotation";
       case "menu_consultas":
         return "FLOW:info";
-      case "menu_vendedor":
-        return "FLOW:main_menu:ask_location_method";
       default:
         return "confirm_name";
     }

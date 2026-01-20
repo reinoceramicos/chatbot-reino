@@ -49,8 +49,15 @@ steps.set("ask_details", {
   prompt: {
     type: "text",
     body: "¿Podrías darme más detalles? Por ejemplo: medidas, color, modelo o cualquier característica que busques.",
+    footer: "Mínimo 10 caracteres",
   },
   expectedInput: "text",
+  validation: (input: string): boolean => {
+    // Debe tener al menos 10 caracteres (evitar "ok", "si", etc.)
+    const trimmed = input.trim();
+    return trimmed.length >= 10;
+  },
+  errorMessage: "Por favor, dame más detalles sobre el producto que buscás (al menos 10 caracteres). Ejemplo: _porcelanato 60x60 simil madera_",
   saveAs: "details",
   nextStep: "ask_quantity",
 });
@@ -61,9 +68,17 @@ steps.set("ask_quantity", {
   prompt: {
     type: "text",
     body: "¿Qué cantidad necesitas? (metros cuadrados, cajas, unidades)",
-    footer: "Ejemplo: 50 m2, 10 cajas",
+    footer: "Ejemplo: 50 m2, 10 cajas, 100 unidades",
   },
   expectedInput: "text",
+  validation: (input: string): boolean => {
+    // Debe contener al menos un número
+    const hasNumber = /\d+/.test(input);
+    // Opcionalmente puede tener unidades comunes
+    const validUnits = /\d+\s*(m2|m²|metros?\s*cuadrados?|cajas?|unidades?|bolsas?|paquetes?|kg|kilos?|litros?|lts?|rollos?|placas?|piezas?)?/i;
+    return hasNumber && validUnits.test(input);
+  },
+  errorMessage: "Por favor, indicá la cantidad con un número. Ejemplo: _50 m2_, _10 cajas_, _100 unidades_",
   saveAs: "quantity",
   nextStep: "ask_location_method",
 });

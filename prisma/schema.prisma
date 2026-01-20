@@ -289,6 +289,8 @@ model FlowStep {
   code          String // "welcome", "ask_category", etc. Único dentro del flujo
   name          String // Nombre descriptivo para el admin
   order         Int               @default(0) // Orden visual en el editor
+  positionX     Float?            @map("position_x") // Posición X en el canvas
+  positionY     Float?            @map("position_y") // Posición Y en el canvas
   stepType      FlowStepType      @default(TEXT) @map("step_type")
   expectedInput FlowExpectedInput @default(TEXT) @map("expected_input")
 

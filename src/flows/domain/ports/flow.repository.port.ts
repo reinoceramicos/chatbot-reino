@@ -23,6 +23,8 @@ export interface CreateStepInput {
   code: string;
   name: string;
   order?: number;
+  positionX?: number;
+  positionY?: number;
   stepType: string;
   expectedInput: string;
   messageBody: string;
@@ -42,6 +44,8 @@ export interface UpdateStepInput {
   code?: string;
   name?: string;
   order?: number;
+  positionX?: number | null;
+  positionY?: number | null;
   stepType?: string;
   expectedInput?: string;
   messageBody?: string;

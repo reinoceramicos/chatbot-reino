@@ -26,6 +26,8 @@ export interface FlowStepProps {
   code: string;
   name: string;
   order: number;
+  positionX?: number | null;
+  positionY?: number | null;
   stepType: FlowStepType;
   expectedInput: FlowExpectedInput;
   messageBody: string;
@@ -101,6 +103,8 @@ export class FlowStep {
   readonly code: string;
   readonly name: string;
   readonly order: number;
+  readonly positionX?: number | null;
+  readonly positionY?: number | null;
   readonly stepType: FlowStepType;
   readonly expectedInput: FlowExpectedInput;
   readonly messageBody: string;
@@ -123,6 +127,8 @@ export class FlowStep {
     this.code = props.code;
     this.name = props.name;
     this.order = props.order;
+    this.positionX = props.positionX;
+    this.positionY = props.positionY;
     this.stepType = props.stepType;
     this.expectedInput = props.expectedInput;
     this.messageBody = props.messageBody;

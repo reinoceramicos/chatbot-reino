@@ -8,6 +8,8 @@ export interface FlowProcessResult {
   newFlowStep?: string;
   newFlowData?: FlowData;
   transferToAgent?: boolean;
+  switchToFlow?: string;
+  confirmName?: boolean; // Si se debe confirmar el nombre del usuario
 }
 
 export interface FlowRegistry {
@@ -135,21 +137,22 @@ export class FlowManagerService {
       };
     }
 
+    // Procesar el input si hay processInput definido
+    const processedInput = flow.processInput(currentStep, input);
+
     // Guardar la respuesta en flowData si es necesario
     const newFlowData = { ...(conversation.flowData || {}) };
     if (currentStep.saveAs) {
-      newFlowData[currentStep.saveAs] = input;
+      newFlowData[currentStep.saveAs] = processedInput;
     }
 
-    // Determinar el siguiente step
-    const nextStepId = flow.getNextStepId(currentStep, input, newFlowData);
+    // Determinar el siguiente step (usar processedInput para la decisión)
+    const nextStepId = flow.getNextStepId(currentStep, processedInput, newFlowData);
 
-    // Si no hay siguiente step, el flujo terminó
     if (!nextStepId || nextStepId === "END") {
       return this.handleFlowCompletion(flow, newFlowData, to, phoneNumberId);
     }
 
-    // Si el siguiente step es "TRANSFER", transferir a agente
     if (nextStepId === "TRANSFER") {
       const transferMessage = Message.createText(
         to,
@@ -166,11 +169,25 @@ export class FlowManagerService {
       };
     }
 
-    // Obtener el siguiente step y crear su mensaje
+    if (nextStepId.startsWith("FLOW:")) {
+      const targetFlowType = nextStepId.replace("FLOW:", "");
+      return this.switchToFlow(targetFlowType, to, phoneNumberId, newFlowData);
+    }
+
     const nextStep = flow.getStep(nextStepId);
     if (!nextStep) {
-      // Step no encontrado, terminar flujo
       return this.handleFlowCompletion(flow, newFlowData, to, phoneNumberId);
+    }
+
+    if (nextStep.transferToAgent) {
+      const message = await flow.createMessageForStep(nextStep, to, phoneNumberId, newFlowData);
+      return {
+        message,
+        flowCompleted: true,
+        newFlowStep: undefined,
+        newFlowData: newFlowData,
+        transferToAgent: true,
+      };
     }
 
     const message = await flow.createMessageForStep(nextStep, to, phoneNumberId, newFlowData);
@@ -180,6 +197,35 @@ export class FlowManagerService {
       flowCompleted: false,
       newFlowStep: nextStepId,
       newFlowData: newFlowData,
+      confirmName: nextStep.confirmName,
+    };
+  }
+
+  private async switchToFlow(
+    flowType: string,
+    to: string,
+    phoneNumberId?: string,
+    previousFlowData?: FlowData
+  ): Promise<FlowProcessResult | null> {
+    const flow = this.flows[flowType];
+    if (!flow) {
+      return null;
+    }
+
+    const initialStep = flow.getInitialStep();
+    if (!initialStep) {
+      return null;
+    }
+
+    const newFlowData = { ...previousFlowData, _previousFlow: true };
+    const message = await flow.createMessageForStep(initialStep, to, phoneNumberId, newFlowData);
+
+    return {
+      message,
+      flowCompleted: false,
+      newFlowStep: initialStep.id,
+      newFlowData: newFlowData,
+      switchToFlow: flowType,
     };
   }
 

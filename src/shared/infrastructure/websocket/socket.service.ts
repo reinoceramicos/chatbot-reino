@@ -228,9 +228,76 @@ export class SocketService {
     this.io.to(`conversation:${data.conversationId}`).emit("message:status", data);
   }
 
-  // Obtener la instancia del servidor Socket.IO
   getIO(): Server {
     return this.io;
+  }
+
+  emitToStore(storeId: string, event: string, data: any): void {
+    this.io.to(`store:${storeId}`).emit(event, data);
+  }
+
+  emitToZone(zoneId: string, event: string, data: any): void {
+    this.io.to(`zone:${zoneId}`).emit(event, data);
+  }
+
+  emitToAgent(agentId: string, event: string, data: any): void {
+    this.io.to(`agent:${agentId}`).emit(event, data);
+  }
+
+  emitConversationWaitingAlert(data: {
+    conversationId: string;
+    storeId?: string;
+    zoneId?: string;
+    waitingMinutes: number;
+    customer: {
+      name?: string;
+      waId: string;
+    };
+  }): void {
+    const payload = {
+      type: "WAITING_ALERT",
+      ...data,
+      timestamp: new Date(),
+    };
+
+    if (data.storeId) {
+      this.io.to(`store:${data.storeId}`).emit("notification:alert", payload);
+    }
+    if (data.zoneId) {
+      this.io.to(`zone:${data.zoneId}`).emit("notification:alert", payload);
+    }
+    this.io.to("agents").emit("notification:alert", payload);
+  }
+
+  emitHighLoadAlert(data: {
+    storeId?: string;
+    zoneId?: string;
+    waitingConversations: number;
+    threshold: number;
+  }): void {
+    const payload = {
+      type: "HIGH_LOAD_ALERT",
+      ...data,
+      timestamp: new Date(),
+    };
+
+    if (data.zoneId) {
+      this.io.to(`zone:${data.zoneId}`).emit("notification:alert", payload);
+    }
+    this.io.to("agents").emit("notification:alert", payload);
+  }
+
+  emitNewMessageNotification(data: {
+    conversationId: string;
+    agentId: string;
+    customerName?: string;
+    messagePreview?: string;
+  }): void {
+    this.io.to(`agent:${data.agentId}`).emit("notification:new_message", {
+      type: "NEW_MESSAGE",
+      ...data,
+      timestamp: new Date(),
+    });
   }
 }
 

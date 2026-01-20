@@ -4,4 +4,5 @@ export interface CustomerRepositoryPort {
   findByWaId(waId: string): Promise<Customer | null>;
   create(customer: Customer): Promise<Customer>;
   update(id: string, data: Partial<Customer>): Promise<Customer>;
+  confirmName(id: string, name: string): Promise<Customer>;
 }

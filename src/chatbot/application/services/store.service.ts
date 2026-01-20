@@ -7,15 +7,19 @@ export interface StoreInfo {
   address: string;
 }
 
-// Mapping from flow zone IDs to database zoneName values
+export interface ZoneInfo {
+  code: string;
+  name: string;
+}
+
 const ZONE_ID_TO_ZONE_NAME: Record<string, string[]> = {
-  zone_caba_norte: ["CABA Norte", "Belgrano", "Palermo", "Núñez"],
-  zone_caba_centro: ["CABA Centro", "Caballito", "Almagro", "Boedo"],
-  zone_caba_oeste: ["CABA Oeste", "Flores", "Liniers", "Mataderos"],
-  zone_norte_gba: ["Zona Norte", "Zona Norte GBA", "Vicente López", "San Isidro", "Tigre"],
-  zone_sur: ["Zona Sur", "Zona Sur GBA", "Quilmes", "Lanús", "Avellaneda", "Lomas"],
-  zone_oeste: ["Zona Oeste", "Zona Oeste GBA", "Morón", "San Justo", "Ituzaingó", "Merlo"],
-  zone_la_plata: ["La Plata"],
+  // Nuevos IDs de zona (usados en los flujos)
+  CABA: ["CABA"],
+  ZONA_NORTE: ["Zona Norte"],
+  ZONA_NOROESTE: ["Zona Noroeste"],
+  ZONA_OESTE: ["Zona Oeste"],
+  ZONA_SUR: ["Zona Sur"],
+  ZONA_NORTE_LEJANO: ["Zona Norte Lejano"],
 };
 
 export class StoreService {
@@ -99,6 +103,64 @@ export class StoreService {
     });
 
     return store;
+  }
+
+  /**
+   * Fetches stores by zone code (from database Zone table)
+   */
+  async getStoresByZone(zoneCode: string): Promise<StoreInfo[]> {
+    // First try to find by zone relation
+    const zone = await this.prisma.zone.findFirst({
+      where: { code: zoneCode },
+    });
+
+    if (zone) {
+      const stores = await this.prisma.store.findMany({
+        where: {
+          isActive: true,
+          zoneId: zone.id,
+        },
+        select: {
+          code: true,
+          name: true,
+          address: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      if (stores.length > 0) {
+        return stores;
+      }
+    }
+
+    // Fallback to zone ID mapping
+    return this.getStoresByZoneId(`zone_${zoneCode.toLowerCase()}`);
+  }
+
+  /**
+   * Alias for getAllActiveStores
+   */
+  async getAllStores(): Promise<StoreInfo[]> {
+    return this.getAllActiveStores();
+  }
+
+  /**
+   * Fetches all zones
+   */
+  async getAllZones(): Promise<ZoneInfo[]> {
+    const zones = await this.prisma.zone.findMany({
+      select: {
+        code: true,
+        name: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    return zones;
   }
 }
 

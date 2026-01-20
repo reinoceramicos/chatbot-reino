@@ -14,13 +14,14 @@ datasource db {
 // ============================================
 
 model Customer {
-  id          String   @id @default(cuid())
-  waId        String   @unique @map("wa_id") // Número de WhatsApp (ej: 5491123456789)
-  name        String?  // Nombre del perfil de WhatsApp
-  phone       String?  // Número formateado
-  email       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  waId          String   @unique @map("wa_id") // Número de WhatsApp (ej: 5491123456789)
+  name          String? // Nombre del perfil de WhatsApp
+  nameConfirmed Boolean  @default(false) @map("name_confirmed") // Si el usuario confirmó su nombre
+  phone         String? // Número formateado
+  email         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   conversations Conversation[]
   messages      Message[]
@@ -33,27 +34,33 @@ model Customer {
 // ============================================
 
 enum ConversationStatus {
-  BOT        // Atendida por el bot
-  WAITING    // Esperando asignación de vendedor
-  ASSIGNED   // Asignada a un vendedor
-  RESOLVED   // Resuelta/cerrada
+  BOT // Atendida por el bot
+  WAITING // Esperando asignación de vendedor
+  ASSIGNED // Asignada a un vendedor
+  RESOLVED // Resuelta/cerrada
+}
+
+enum Channel {
+  WHATSAPP
+  INSTAGRAM
 }
 
 model Conversation {
-  id          String             @id @default(cuid())
-  customerId  String             @map("customer_id")
-  agentId     String?            @map("agent_id") // Vendedor asignado (null si es bot)
-  storeId     String?            @map("store_id") // Tienda asignada (por ubicación del cliente)
-  status      ConversationStatus @default(BOT)
-  context     Json?              // Contexto adicional (intenciones detectadas, etc)
-  startedAt   DateTime           @default(now()) @map("started_at")
-  resolvedAt  DateTime?          @map("resolved_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
+  id         String             @id @default(cuid())
+  customerId String             @map("customer_id")
+  agentId    String?            @map("agent_id") // Vendedor asignado (null si es bot)
+  storeId    String?            @map("store_id") // Tienda asignada (por ubicación del cliente)
+  status     ConversationStatus @default(BOT)
+  channel    Channel            @default(WHATSAPP) // Canal de origen (WhatsApp, Instagram)
+  context    Json? // Contexto adicional (intenciones detectadas, etc)
+  startedAt  DateTime           @default(now()) @map("started_at")
+  resolvedAt DateTime?          @map("resolved_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
 
   // Campos para flujos conversacionales
-  flowType      String?   @map("flow_type")      // "quotation", "info", etc.
-  flowStep      String?   @map("flow_step")      // Step actual del flujo
-  flowData      Json?     @map("flow_data")      // Datos recolectados en el flujo
+  flowType      String?   @map("flow_type") // "quotation", "info", etc.
+  flowStep      String?   @map("flow_step") // Step actual del flujo
+  flowData      Json?     @map("flow_data") // Datos recolectados en el flujo
   flowStartedAt DateTime? @map("flow_started_at") // Timestamp de inicio del flujo
 
   // Campos para métricas
@@ -62,7 +69,7 @@ model Conversation {
   saleAmount      Float?    @map("sale_amount")
 
   // Tracking de lectura
-  lastReadAt      DateTime? @map("last_read_at") // Última vez que el agente leyó los mensajes
+  lastReadAt DateTime? @map("last_read_at") // Última vez que el agente leyó los mensajes
 
   customer Customer  @relation(fields: [customerId], references: [id])
   agent    Agent?    @relation(fields: [agentId], references: [id])
@@ -84,7 +91,7 @@ model Conversation {
 // ============================================
 
 enum MessageDirection {
-  INBOUND  // Cliente -> Bot/Vendedor
+  INBOUND // Cliente -> Bot/Vendedor
   OUTBOUND // Bot/Vendedor -> Cliente
 }
 
@@ -103,24 +110,25 @@ enum MessageType {
 }
 
 enum MessageStatus {
-  SENT      // Enviado al servidor de WhatsApp
+  SENT // Enviado al servidor de WhatsApp
   DELIVERED // Entregado al dispositivo del cliente
-  READ      // Leído por el cliente
-  FAILED    // Error al enviar
+  READ // Leído por el cliente
+  FAILED // Error al enviar
 }
 
 model Message {
   id             String           @id @default(cuid())
   conversationId String           @map("conversation_id")
   customerId     String           @map("customer_id")
-  waMessageId    String?          @unique @map("wa_message_id") // ID de WhatsApp
+  waMessageId    String?          @unique @map("wa_message_id") // ID del canal (wa_id para WhatsApp, mid para Instagram)
+  channel        Channel          @default(WHATSAPP) // Canal por el que se envió/recibió
   direction      MessageDirection
   type           MessageType      @default(TEXT)
-  status         MessageStatus?   // Estado del mensaje (solo para OUTBOUND)
-  content        String?          // Contenido del mensaje (texto)
+  status         MessageStatus? // Estado del mensaje (solo para OUTBOUND)
+  content        String? // Contenido del mensaje (texto)
   mediaUrl       String?          @map("media_url")
   mediaId        String?          @map("media_id")
-  metadata       Json?            // Datos adicionales (ubicación, contactos, etc)
+  metadata       Json? // Datos adicionales (ubicación, contactos, etc)
   sentByBot      Boolean          @default(false) @map("sent_by_bot")
   sentByAgentId  String?          @map("sent_by_agent_id")
   createdAt      DateTime         @default(now()) @map("created_at")
@@ -135,44 +143,36 @@ model Message {
   @@map("messages")
 }
 
-// ============================================
-// ZONAS GEOGRÁFICAS
-// ============================================
-
 model Zone {
   id        String   @id @default(cuid())
   code      String   @unique // "CABA_NORTE", "ZONA_SUR", etc.
-  name      String   // "CABA Norte", "Zona Sur", etc.
+  name      String // "CABA Norte", "Zona Sur", etc.
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  stores    Store[]
-  agents    Agent[]  // Zonales y gerentes asignados a esta zona
+  stores Store[]
+  agents Agent[] // Zonales y gerentes asignados a esta zona
 
   @@map("zones")
 }
 
-// ============================================
-// TIENDAS / REINOS
-// ============================================
-
 model Store {
-  id          String   @id @default(cuid())
-  code        String   @unique // "REINO_1", "REINO_2", etc.
-  name        String   // "Reino 1 - Belgrano", etc.
-  address     String   // Dirección completa
-  zoneName    String   @map("zone_name") // Zona para selección manual: "Zona Norte", "Zona Sur", etc.
-  zoneId      String?  @map("zone_id")   // Relación con Zone
-  latitude    Float    // Coordenadas para geolocalización
-  longitude   Float
-  googleMapsUrl String? @map("google_maps_url") // Link de Google Maps
-  phone       String?  // Teléfono del local
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  code          String   @unique // "REINO_1", "REINO_2", etc.
+  name          String // "Reino 1 - Belgrano", etc.
+  address       String // Dirección completa
+  zoneName      String   @map("zone_name") // Zona para selección manual: "Zona Norte", "Zona Sur", etc.
+  zoneId        String?  @map("zone_id") // Relación con Zone
+  latitude      Float // Coordenadas para geolocalización
+  longitude     Float
+  googleMapsUrl String?  @map("google_maps_url") // Link de Google Maps
+  phone         String? // Teléfono del local
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  zone        Zone?    @relation(fields: [zoneId], references: [id])
-  agents      Agent[]
+  zone          Zone?          @relation(fields: [zoneId], references: [id])
+  agents        Agent[]
   conversations Conversation[]
 
   @@index([zoneId])
@@ -181,41 +181,37 @@ model Store {
   @@map("stores")
 }
 
-// ============================================
-// VENDEDORES / AGENTES
-// ============================================
-
 enum AgentStatus {
-  AVAILABLE   // Disponible para recibir conversaciones
-  BUSY        // Ocupado (tiene conversaciones activas)
-  OFFLINE     // No disponible
+  AVAILABLE // Disponible para recibir conversaciones
+  BUSY // Ocupado (tiene conversaciones activas)
+  OFFLINE // No disponible
 }
 
 enum AgentRole {
-  SELLER            // Vendedor - solo sus propios chats
-  MANAGER           // Encargado - chats de su Reino (tienda)
-  ZONE_SUPERVISOR   // Zonal - chats de todos los Reinos de su zona
-  REGIONAL_MANAGER  // Gerencia - todos los chats
+  SELLER // Vendedor - solo sus propios chats
+  MANAGER // Encargado - chats de su Reino (tienda)
+  ZONE_SUPERVISOR // Zonal - chats de todos los Reinos de su zona
+  REGIONAL_MANAGER // Gerencia - todos los chats
 }
 
 model Agent {
-  id            String      @id @default(cuid())
-  storeId       String?     @map("store_id") // Tienda asignada (vendedores y encargados)
-  zoneId        String?     @map("zone_id")  // Zona asignada (zonales)
-  role          AgentRole   @default(SELLER)
-  name          String
-  waId          String?     @unique @map("wa_id") // WhatsApp del vendedor (para notificaciones)
-  email         String?     @unique
-  password      String?     // Hash de contraseña para login en app
-  status        AgentStatus @default(OFFLINE)
-  maxConversations Int      @default(5) @map("max_conversations") // Máximo de conversaciones simultáneas
-  activeConversations Int   @default(0) @map("active_conversations")
-  lastLoginAt   DateTime?   @map("last_login_at") // Último login en la app
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id                  String      @id @default(cuid())
+  storeId             String?     @map("store_id") // Tienda asignada (vendedores y encargados)
+  zoneId              String?     @map("zone_id") // Zona asignada (zonales)
+  role                AgentRole   @default(SELLER)
+  name                String
+  waId                String?     @unique @map("wa_id") // WhatsApp del vendedor (para notificaciones)
+  email               String?     @unique
+  password            String? // Hash de contraseña para login en app
+  status              AgentStatus @default(OFFLINE)
+  maxConversations    Int         @default(5) @map("max_conversations") // Máximo de conversaciones simultáneas
+  activeConversations Int         @default(0) @map("active_conversations")
+  lastLoginAt         DateTime?   @map("last_login_at") // Último login en la app
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
-  store         Store?      @relation(fields: [storeId], references: [id])
-  zone          Zone?       @relation(fields: [zoneId], references: [id])
+  store         Store?         @relation(fields: [storeId], references: [id])
+  zone          Zone?          @relation(fields: [zoneId], references: [id])
   conversations Conversation[]
   messages      Message[]
 
@@ -226,16 +222,12 @@ model Agent {
   @@map("agents")
 }
 
-// ============================================
-// RESPUESTAS AUTOMÁTICAS
-// ============================================
-
 model AutoResponse {
   id          String   @id @default(cuid())
-  trigger     String   // Palabra clave o patrón que activa la respuesta
+  trigger     String // Palabra clave o patrón que activa la respuesta
   triggerType String   @default("keyword") @map("trigger_type") // keyword, regex, intent
-  response    String   // Respuesta a enviar
-  category    String?  // horarios, ubicacion, envios, pagos, etc
+  response    String // Respuesta a enviar
+  category    String? // horarios, ubicacion, envios, pagos, etc
   priority    Int      @default(0) // Mayor prioridad se evalúa primero
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -246,129 +238,121 @@ model AutoResponse {
   @@map("auto_responses")
 }
 
-// ============================================
-// CONFIGURACIÓN DEL BOT
-// ============================================
-
 model BotConfig {
   id        String   @id @default(cuid())
   key       String   @unique // welcome_message, business_hours, etc
-  value     String   // Valor de la configuración
+  value     String // Valor de la configuración
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("bot_config")
 }
 
-// ============================================
-// FLUJOS CONFIGURABLES
-// ============================================
+model FlowDefinition {
+  id             String   @id @default(cuid())
+  code           String   @unique // "main_menu", "quotation", "info"
+  name           String // "Menú Principal", "Cotización", etc.
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  isDefault      Boolean  @default(false) @map("is_default") // Flujo inicial del chatbot
+  initialStepId  String?  @map("initial_step_id") // Step inicial del flujo
+  timeoutMinutes Int      @default(30) @map("timeout_minutes")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  steps FlowStep[]
+
+  @@index([isActive])
+  @@index([isDefault])
+  @@map("flow_definitions")
+}
 
 enum FlowStepType {
-  TEXT              // Mensaje de texto simple
-  BUTTON            // Mensaje con botones (máximo 3)
-  LIST              // Lista desplegable (máximo 10 items)
-  LOCATION_REQUEST  // Solicita ubicación
-  DYNAMIC_LIST      // Lista que se llena dinámicamente
+  TEXT // Mensaje de texto simple
+  BUTTON // Mensaje con botones (max 3)
+  LIST // Mensaje con lista desplegable (max 10 items por sección)
+  LOCATION_REQUEST // Solicita ubicación al usuario
+  DYNAMIC_LIST // Lista generada dinámicamente (ej: tiendas por zona)
 }
 
 enum FlowExpectedInput {
-  TEXT          // Espera texto libre
-  BUTTON_REPLY  // Espera clic en botón
-  LIST_REPLY    // Espera selección de lista
-  LOCATION      // Espera ubicación GPS
-  ANY           // Acepta cualquier tipo
-  NONE          // No espera respuesta (mensaje final)
-}
-
-enum FlowDynamicDataSource {
-  stores_by_zone  // Tiendas filtradas por zona seleccionada
-  all_stores      // Todas las tiendas
-  all_zones       // Todas las zonas
-}
-
-model Flow {
-  id              String   @id @default(cuid())
-  code            String   @unique // Código único (ej: "main_menu", "quotation")
-  name            String   // Nombre visible
-  description     String?  // Descripción del flujo
-  isActive        Boolean  @default(true) @map("is_active")
-  isDefault       Boolean  @default(false) @map("is_default") // Solo puede haber uno
-  initialStepId   String?  @map("initial_step_id") // ID del step inicial
-  timeoutMinutes  Int      @default(30) @map("timeout_minutes") // Minutos antes de expirar
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  steps           FlowStep[]
-
-  @@index([code])
-  @@index([isActive])
-  @@index([isDefault])
-  @@map("flows")
+  TEXT // Espera texto libre
+  BUTTON_REPLY // Espera click en botón
+  LIST_REPLY // Espera selección de lista
+  LOCATION // Espera ubicación GPS
+  ANY // Cualquier tipo de input
+  NONE // No espera input (mensaje final)
 }
 
 model FlowStep {
-  id                String                  @id @default(cuid())
-  flowId            String                  @map("flow_id")
-  code              String                  // Código único dentro del flujo
-  name              String                  // Nombre descriptivo
-  order             Int                     @default(0) // Orden de visualización
-  stepType          FlowStepType            @default(TEXT) @map("step_type")
-  expectedInput     FlowExpectedInput       @default(TEXT) @map("expected_input")
-  messageBody       String                  @map("message_body") // Texto del mensaje
-  messageHeader     String?                 @map("message_header")
-  messageFooter     String?                 @map("message_footer")
-  listButtonText    String?                 @map("list_button_text") // Texto del botón para listas
-  validationRegex   String?                 @map("validation_regex") // Regex para validar respuesta
-  errorMessage      String?                 @map("error_message") // Mensaje si validación falla
-  saveResponseAs    String?                 @map("save_response_as") // Variable donde guardar respuesta
-  transferToAgent   Boolean                 @default(false) @map("transfer_to_agent")
-  switchToFlow      String?                 @map("switch_to_flow") // Código de flujo al que cambiar
-  dynamicDataSource FlowDynamicDataSource?  @map("dynamic_data_source")
-  defaultNextStepId String?                 @map("default_next_step_id")
-  createdAt         DateTime                @default(now()) @map("created_at")
-  updatedAt         DateTime                @updatedAt @map("updated_at")
+  id            String            @id @default(cuid())
+  flowId        String            @map("flow_id")
+  code          String // "welcome", "ask_category", etc. Único dentro del flujo
+  name          String // Nombre descriptivo para el admin
+  order         Int               @default(0) // Orden visual en el editor
+  stepType      FlowStepType      @default(TEXT) @map("step_type")
+  expectedInput FlowExpectedInput @default(TEXT) @map("expected_input")
 
-  flow              Flow                    @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  options           FlowStepOption[]
-  transitions       FlowStepTransition[]
+  // Contenido del mensaje
+  messageBody    String  @map("message_body") // Texto principal
+  messageHeader  String? @map("message_header") // Header (opcional)
+  messageFooter  String? @map("message_footer") // Footer (opcional)
+  listButtonText String? @map("list_button_text") // Texto del botón para listas
+
+  // Validación
+  validationRegex String? @map("validation_regex") // Regex para validar input de texto
+  errorMessage    String? @map("error_message") // Mensaje si falla validación
+
+  // Almacenamiento
+  saveResponseAs String? @map("save_response_as") // Key para guardar respuesta en flowData
+
+  // Acciones especiales
+  transferToAgent Boolean @default(false) @map("transfer_to_agent")
+  switchToFlow    String? @map("switch_to_flow") // Code del flujo al que cambiar
+
+  // Para DYNAMIC_LIST: define qué tipo de datos cargar
+  dynamicDataSource String? @map("dynamic_data_source") // "stores_by_zone", "categories", etc.
+
+  // Navegación por defecto (si no hay transición específica)
+  defaultNextStepId String? @map("default_next_step_id") // null = END
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  flow        FlowDefinition       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  options     FlowStepOption[]
+  transitions FlowStepTransition[]
 
   @@unique([flowId, code])
   @@index([flowId])
-  @@index([order])
   @@map("flow_steps")
 }
 
 model FlowStepOption {
-  id          String   @id @default(cuid())
-  stepId      String   @map("step_id")
-  optionId    String   @map("option_id") // ID que se envía cuando el usuario selecciona
-  title       String   // Texto visible (máx 24 chars listas, 20 botones)
-  description String?  // Descripción (solo para listas, máx 72 chars)
-  section     String?  // Sección/agrupación (solo para listas)
-  order       Int      @default(0) // Orden de visualización
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          String  @id @default(cuid())
+  stepId      String  @map("step_id")
+  optionId    String  @map("option_id") // ID que se envía cuando el usuario elige esta opción
+  title       String // Texto visible (max 20 chars para botones, 24 para listas)
+  description String? // Solo para listas (max 72 chars)
+  section     String? // Nombre de sección para agrupar en listas
+  order       Int     @default(0)
 
-  step        FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  step FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
+  @@unique([stepId, optionId])
   @@index([stepId])
-  @@index([order])
   @@map("flow_step_options")
 }
 
 model FlowStepTransition {
-  id           String   @id @default(cuid())
-  stepId       String   @map("step_id")
-  condition    String   // Valor que activa esta transición (o "*" para cualquiera)
-  nextStepId   String?  @map("next_step_id") // ID del siguiente step
-  switchToFlow String?  @map("switch_to_flow") // Código de flujo al que cambiar
-  order        Int      @default(0) // Prioridad (menor = se evalúa primero)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id           String  @id @default(cuid())
+  stepId       String  @map("step_id")
+  condition    String // Valor del input que activa esta transición (ej: "menu_comprar", "confirm_yes")
+  nextStepId   String? @map("next_step_id") // null = END
+  switchToFlow String? @map("switch_to_flow") // Código del flujo al que cambiar (ej: "quotation")
+  order        Int     @default(0) // Orden de evaluación (para múltiples condiciones)
 
-  step         FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  step FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
   @@index([stepId])
-  @@index([order])
   @@map("flow_step_transitions")
 }

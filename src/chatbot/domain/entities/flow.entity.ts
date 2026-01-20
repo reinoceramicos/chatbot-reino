@@ -1,7 +1,7 @@
 import { Message, InteractiveButton, InteractiveListSection } from "../../../messaging/domain/entities/message.entity";
 
 export type FlowStepType = "text" | "button" | "list";
-export type ExpectedInputType = "text" | "button_reply" | "list_reply" | "any";
+export type ExpectedInputType = "text" | "button_reply" | "list_reply" | "any" | "none";
 
 export interface FlowStepPrompt {
   type: FlowStepType;
@@ -18,14 +18,16 @@ export interface FlowStepPrompt {
 export interface FlowStep {
   id: string;
   prompt?: FlowStepPrompt;
-  // Dynamic prompt function - called at runtime with flowData to generate prompt
   dynamicPrompt?: (flowData: Record<string, any>) => Promise<FlowStepPrompt>;
   expectedInput: ExpectedInputType;
   validation?: (input: string) => boolean;
+  processInput?: (input: string) => string; // Transforma el input antes de guardarlo
   errorMessage?: string;
   nextStep: string | ((input: string, flowData: Record<string, any>) => string);
-  saveAs?: string; // Key para guardar la respuesta en flowData
-  onTimeout?: string; // Step a ejecutar si hay timeout
+  saveAs?: string;
+  onTimeout?: string;
+  transferToAgent?: boolean;
+  confirmName?: boolean; // Flag para confirmar el nombre del usuario
 }
 
 export interface FlowDefinition {
@@ -124,5 +126,15 @@ export class Flow {
       return true;
     }
     return step.validation(input);
+  }
+
+  /**
+   * Procesa/transforma la entrada antes de guardarla
+   */
+  processInput(step: FlowStep, input: string): string {
+    if (!step.processInput) {
+      return input;
+    }
+    return step.processInput(input);
   }
 }

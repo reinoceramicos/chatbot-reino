@@ -1,4 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import {
+  PrismaClient,
+  FlowStepType as PrismaFlowStepType,
+  FlowExpectedInput as PrismaFlowExpectedInput,
+  FlowDefinition as PrismaFlowDefinitionModel,
+  FlowStep as PrismaFlowStepModel,
+  FlowStepOption as PrismaFlowStepOptionModel,
+  FlowStepTransition as PrismaFlowStepTransitionModel,
+} from "@prisma/client";
 import {
   FlowRepositoryPort,
   CreateFlowInput,
@@ -19,10 +27,21 @@ import {
   FlowExpectedInput,
 } from "../../domain/entities/flow.entity";
 
+type PrismaFlowStepWithRelations = PrismaFlowStepModel & {
+  options: PrismaFlowStepOptionModel[];
+  transitions: PrismaFlowStepTransitionModel[];
+};
+
+type PrismaFlowDefinitionWithRelations = PrismaFlowDefinitionModel & {
+  steps: PrismaFlowStepWithRelations[];
+};
+
 export class PrismaFlowRepository implements FlowRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private mapToFlowDefinition(data: any): FlowDefinition {
+  private mapToFlowDefinition(
+    data: PrismaFlowDefinitionWithRelations,
+  ): FlowDefinition {
     return new FlowDefinition({
       id: data.id,
       code: data.code,
@@ -34,7 +53,7 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
       timeoutMinutes: data.timeoutMinutes,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      steps: (data.steps || []).map((step: any) => ({
+      steps: data.steps.map((step) => ({
         id: step.id,
         flowId: step.flowId,
         code: step.code,
@@ -55,7 +74,7 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
         switchToFlow: step.switchToFlow,
         dynamicDataSource: step.dynamicDataSource,
         defaultNextStepId: step.defaultNextStepId,
-        options: (step.options || []).map((opt: any) => ({
+        options: step.options.map((opt) => ({
           id: opt.id,
           stepId: opt.stepId,
           optionId: opt.optionId,
@@ -64,7 +83,7 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
           section: opt.section,
           order: opt.order,
         })),
-        transitions: (step.transitions || []).map((trans: any) => ({
+        transitions: step.transitions.map((trans) => ({
           id: trans.id,
           stepId: trans.stepId,
           condition: trans.condition,
@@ -151,7 +170,10 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     return this.mapToFlowDefinition(flow);
   }
 
-  async updateFlow(id: string, input: UpdateFlowInput): Promise<FlowDefinition> {
+  async updateFlow(
+    id: string,
+    input: UpdateFlowInput,
+  ): Promise<FlowDefinition> {
     if (input.isDefault === true) {
       await this.prisma.flowDefinition.updateMany({
         where: { isDefault: true, id: { not: id } },
@@ -192,8 +214,8 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
         order: input.order ?? (maxOrder._max.order ?? -1) + 1,
         positionX: input.positionX,
         positionY: input.positionY,
-        stepType: input.stepType as any,
-        expectedInput: input.expectedInput as any,
+        stepType: input.stepType as PrismaFlowStepType,
+        expectedInput: input.expectedInput as PrismaFlowExpectedInput,
         messageBody: input.messageBody,
         messageHeader: input.messageHeader,
         messageFooter: input.messageFooter,
@@ -230,8 +252,12 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
         order: input.order,
         positionX: input.positionX,
         positionY: input.positionY,
-        stepType: input.stepType as any,
-        expectedInput: input.expectedInput as any,
+        stepType: input.stepType
+          ? (input.stepType as PrismaFlowStepType)
+          : undefined,
+        expectedInput: input.expectedInput
+          ? (input.expectedInput as PrismaFlowExpectedInput)
+          : undefined,
         messageBody: input.messageBody,
         messageHeader: input.messageHeader,
         messageFooter: input.messageFooter,
@@ -303,7 +329,10 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     return new FlowStepOption(option);
   }
 
-  async updateOption(id: string, input: UpdateOptionInput): Promise<FlowStepOption> {
+  async updateOption(
+    id: string,
+    input: UpdateOptionInput,
+  ): Promise<FlowStepOption> {
     const option = await this.prisma.flowStepOption.update({
       where: { id },
       data: {
@@ -322,7 +351,9 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     await this.prisma.flowStepOption.delete({ where: { id } });
   }
 
-  async createTransition(input: CreateTransitionInput): Promise<FlowStepTransition> {
+  async createTransition(
+    input: CreateTransitionInput,
+  ): Promise<FlowStepTransition> {
     const maxOrder = await this.prisma.flowStepTransition.aggregate({
       where: { stepId: input.stepId },
       _max: { order: true },
@@ -341,7 +372,10 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     return new FlowStepTransition(transition);
   }
 
-  async updateTransition(id: string, input: UpdateTransitionInput): Promise<FlowStepTransition> {
+  async updateTransition(
+    id: string,
+    input: UpdateTransitionInput,
+  ): Promise<FlowStepTransition> {
     const transition = await this.prisma.flowStepTransition.update({
       where: { id },
       data: {
@@ -359,7 +393,10 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     await this.prisma.flowStepTransition.delete({ where: { id } });
   }
 
-  async setInitialStep(flowId: string, stepId: string): Promise<FlowDefinition> {
+  async setInitialStep(
+    flowId: string,
+    stepId: string,
+  ): Promise<FlowDefinition> {
     const flow = await this.prisma.flowDefinition.update({
       where: { id: flowId },
       data: { initialStepId: stepId },
@@ -368,7 +405,11 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     return this.mapToFlowDefinition(flow);
   }
 
-  async duplicateFlow(flowId: string, newCode: string, newName: string): Promise<FlowDefinition> {
+  async duplicateFlow(
+    flowId: string,
+    newCode: string,
+    newName: string,
+  ): Promise<FlowDefinition> {
     const original = await this.prisma.flowDefinition.findUnique({
       where: { id: flowId },
       include: this.getIncludeClause(),
@@ -432,14 +473,17 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
     }
 
     for (const step of original.steps) {
-      const newStepId = stepIdMap.get(step.id)!;
+      const newStepId = stepIdMap.get(step.id);
+      if (!newStepId) continue;
 
       for (const transition of step.transitions) {
         await this.prisma.flowStepTransition.create({
           data: {
             stepId: newStepId,
             condition: transition.condition,
-            nextStepId: transition.nextStepId ? stepIdMap.get(transition.nextStepId) : null,
+            nextStepId: transition.nextStepId
+              ? stepIdMap.get(transition.nextStepId)
+              : null,
             switchToFlow: transition.switchToFlow,
             order: transition.order,
           },
@@ -461,6 +505,10 @@ export class PrismaFlowRepository implements FlowRepositoryPort {
       });
     }
 
-    return this.findById(newFlow.id) as Promise<FlowDefinition>;
+    const duplicatedFlow = await this.findById(newFlow.id);
+    if (!duplicatedFlow) {
+      throw new Error("Failed to retrieve duplicated flow");
+    }
+    return duplicatedFlow;
   }
 }

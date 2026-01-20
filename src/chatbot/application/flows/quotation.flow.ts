@@ -99,9 +99,20 @@ steps.set("waiting_location", {
     type: "text",
     body: "Perfecto, enviame tu ubicación usando el botón de adjuntar 📎 > Ubicación en WhatsApp.\n\n_Si preferís elegir la zona manualmente, escribí *zona*_",
   },
-  expectedInput: "any", // Puede ser location o text (si escribe "zona")
+  expectedInput: "any",
   saveAs: "locationInput",
-  nextStep: "transfer_to_agent", // El procesamiento de ubicación se hace en bot.service
+  nextStep: (input: string, flowData: Record<string, any>) => {
+    // Si recibió ubicación GPS (el bot.service setea esto)
+    if (input === "location_received" || flowData.assignedStoreCode) {
+      return "transfer_to_agent";
+    }
+    // Si escribe "zona", ir a selección manual
+    if (input.toLowerCase().includes("zona")) {
+      return "select_zone";
+    }
+    // Cualquier otro texto, repetir el pedido de ubicación
+    return "waiting_location";
+  },
 });
 
 // Step 3d: Seleccionar zona manualmente

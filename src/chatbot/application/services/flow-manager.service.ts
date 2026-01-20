@@ -137,14 +137,17 @@ export class FlowManagerService {
       };
     }
 
+    // Procesar el input si hay processInput definido
+    const processedInput = flow.processInput(currentStep, input);
+
     // Guardar la respuesta en flowData si es necesario
     const newFlowData = { ...(conversation.flowData || {}) };
     if (currentStep.saveAs) {
-      newFlowData[currentStep.saveAs] = input;
+      newFlowData[currentStep.saveAs] = processedInput;
     }
 
-    // Determinar el siguiente step
-    const nextStepId = flow.getNextStepId(currentStep, input, newFlowData);
+    // Determinar el siguiente step (usar processedInput para la decisión)
+    const nextStepId = flow.getNextStepId(currentStep, processedInput, newFlowData);
 
     if (!nextStepId || nextStepId === "END") {
       return this.handleFlowCompletion(flow, newFlowData, to, phoneNumberId);

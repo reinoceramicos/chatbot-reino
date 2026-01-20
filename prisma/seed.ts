@@ -45,7 +45,7 @@ const storesData = [
   },
   {
     code: "120002",
-    name: "Reino 2 - San Martín Outlet",
+    name: "Reino 2 - San Martín",
     address: "Av. Ricardo Balbin 3302, San Martín",
     zone: "Zona Norte",
     latitude: -34.5708,
@@ -54,7 +54,7 @@ const storesData = [
   },
   {
     code: "120003",
-    name: "Reino 3 - Martin Coronado",
+    name: "Reino 3 - M. Coronado",
     address: "Av. Bernabé Marquez 1718, Martin Coronado",
     zone: "Zona Norte",
     latitude: -34.5786,
@@ -102,13 +102,13 @@ const storesData = [
     name: "Reino 8 - Pilar",
     address: "Av. Dardo Rocha 2107, Pilar",
     zone: "Zona Noroeste",
-    latitude: -34.4770,
+    latitude: -34.477,
     longitude: -58.9017,
     googleMapsUrl: "https://goo.gl/maps/fDGkeptABpCZkTFv7",
   },
   {
     code: "120009",
-    name: "Reino 9 - General Rodriguez",
+    name: "Reino 9 - Gral Rodriguez",
     address: "Ruta Provincial 24 N°1007, General Rodriguez",
     zone: "Zona Oeste",
     latitude: -34.6095,
@@ -117,7 +117,7 @@ const storesData = [
   },
   {
     code: "120010",
-    name: "Reino 10 - Cuartel V Moreno",
+    name: "Reino 10 - Cuartel V",
     address: "Ruta Provincial 24 N°5801, Cuartel V, Moreno",
     zone: "Zona Oeste",
     latitude: -34.5619,
@@ -126,7 +126,7 @@ const storesData = [
   },
   {
     code: "120011",
-    name: "Reino 11 - Francisco Alvarez",
+    name: "Reino 11 - F. Alvarez",
     address: "Avenida Gaona 12901, Francisco Alvarez",
     zone: "Zona Oeste",
     latitude: -34.6133,
@@ -156,7 +156,7 @@ const storesData = [
     name: "Reino 15 - Pilar RN8",
     address: "Colectora y Vedia RN8, Pilar",
     zone: "Zona Noroeste",
-    latitude: -34.4510,
+    latitude: -34.451,
     longitude: -58.9461,
     googleMapsUrl: "https://maps.app.goo.gl/V9SDt7a2awsqKUCq5",
   },
@@ -171,7 +171,7 @@ const storesData = [
   },
   {
     code: "120017",
-    name: "Reino 17 - Francisco Alvarez II",
+    name: "Reino 17 - F. Alvarez II",
     address: "Av. Manuel Luis de Oliden 74, Francisco Alvarez",
     zone: "Zona Oeste",
     latitude: -34.6258,
@@ -180,7 +180,7 @@ const storesData = [
   },
   {
     code: "120018",
-    name: "Reino 18 - Capilla del Señor",
+    name: "Reino 18 - Capilla",
     address: "RN8 km 87, B2812 Diego Gaynor, Capilla del Señor",
     zone: "Zona Norte Lejano",
     latitude: -34.3514,
@@ -198,7 +198,7 @@ const storesData = [
   },
   {
     code: "120020",
-    name: "Reino 20 - Ingeniero Maschwitz",
+    name: "Reino 20 - Ing. Maschwitz",
     address: "Colectora Este Ramal Escobar 40969, Ingeniero Maschwitz",
     zone: "Zona Norte",
     latitude: -34.4025,
@@ -255,21 +255,24 @@ async function main() {
     {
       trigger: "horario",
       triggerType: "keyword",
-      response: "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
+      response:
+        "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
       category: "horarios",
       priority: 10,
     },
     {
       trigger: "abierto",
       triggerType: "keyword",
-      response: "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
+      response:
+        "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
       category: "horarios",
       priority: 9,
     },
     {
       trigger: "atienden",
       triggerType: "keyword",
-      response: "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
+      response:
+        "📅 Nuestros horarios de atención son:\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado",
       category: "horarios",
       priority: 8,
     },
@@ -278,21 +281,24 @@ async function main() {
     {
       trigger: "direccion",
       triggerType: "keyword",
-      response: "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
+      response:
+        "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
       category: "ubicacion",
       priority: 10,
     },
     {
       trigger: "ubicacion",
       triggerType: "keyword",
-      response: "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
+      response:
+        "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
       category: "ubicacion",
       priority: 9,
     },
     {
       trigger: "donde estan",
       triggerType: "keyword",
-      response: "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
+      response:
+        "📍 Nuestra dirección es:\n\n🏢 Av. Principal 1234, Ciudad\n\n¿Necesitas que te enviemos la ubicación en el mapa?",
       category: "ubicacion",
       priority: 8,
     },
@@ -301,21 +307,24 @@ async function main() {
     {
       trigger: "envio",
       triggerType: "keyword",
-      response: "🚚 Realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
+      response:
+        "🚚 Realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
       category: "envios",
       priority: 10,
     },
     {
       trigger: "delivery",
       triggerType: "keyword",
-      response: "🚚 Realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
+      response:
+        "🚚 Realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
       category: "envios",
       priority: 9,
     },
     {
       trigger: "hacen envios",
       triggerType: "keyword",
-      response: "🚚 Sí, realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
+      response:
+        "🚚 Sí, realizamos envíos a todo el país!\n\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en nuestro local\n\n¿Querés cotizar un envío?",
       category: "envios",
       priority: 8,
     },
@@ -324,28 +333,32 @@ async function main() {
     {
       trigger: "pago",
       triggerType: "keyword",
-      response: "💳 Formas de pago disponibles:\n\n✅ Efectivo\n✅ Transferencia bancaria\n✅ Tarjeta de débito\n✅ Tarjeta de crédito (hasta 12 cuotas)\n✅ Mercado Pago",
+      response:
+        "💳 Formas de pago disponibles:\n\n✅ Efectivo\n✅ Transferencia bancaria\n✅ Tarjeta de débito\n✅ Tarjeta de crédito (hasta 12 cuotas)\n✅ Mercado Pago",
       category: "pagos",
       priority: 10,
     },
     {
       trigger: "tarjeta",
       triggerType: "keyword",
-      response: "💳 Sí, aceptamos tarjetas!\n\n✅ Débito: todas las tarjetas\n✅ Crédito: hasta 12 cuotas sin interés\n✅ También Mercado Pago",
+      response:
+        "💳 Sí, aceptamos tarjetas!\n\n✅ Débito: todas las tarjetas\n✅ Crédito: hasta 12 cuotas sin interés\n✅ También Mercado Pago",
       category: "pagos",
       priority: 9,
     },
     {
       trigger: "transferencia",
       triggerType: "keyword",
-      response: "🏦 Sí, aceptamos transferencias bancarias.\n\nTe pasamos los datos al momento de confirmar tu pedido.",
+      response:
+        "🏦 Sí, aceptamos transferencias bancarias.\n\nTe pasamos los datos al momento de confirmar tu pedido.",
       category: "pagos",
       priority: 8,
     },
     {
       trigger: "cuotas",
       triggerType: "keyword",
-      response: "💳 ¡Sí! Ofrecemos hasta 12 cuotas sin interés con tarjetas de crédito.\n\n¿Querés que un vendedor te asesore?",
+      response:
+        "💳 ¡Sí! Ofrecemos hasta 12 cuotas sin interés con tarjetas de crédito.\n\n¿Querés que un vendedor te asesore?",
       category: "pagos",
       priority: 8,
     },
@@ -363,9 +376,21 @@ async function main() {
   await prisma.botConfig.deleteMany();
   await prisma.botConfig.createMany({
     data: [
-      { key: "welcome_message", value: "¡Hola! 👋 Bienvenido a Reino Cerámicos. ¿En qué podemos ayudarte hoy?" },
-      { key: "transfer_message", value: "Entendido, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌" },
-      { key: "fallback_message", value: "Gracias por tu mensaje. Si necesitas hablar con un vendedor, escribí *vendedor* o *cotizar*." },
+      {
+        key: "welcome_message",
+        value:
+          "¡Hola! 👋 Bienvenido a Reino Cerámicos. ¿En qué podemos ayudarte hoy?",
+      },
+      {
+        key: "transfer_message",
+        value:
+          "Entendido, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌",
+      },
+      {
+        key: "fallback_message",
+        value:
+          "Gracias por tu mensaje. Si necesitas hablar con un vendedor, escribí *vendedor* o *cotizar*.",
+      },
       { key: "business_name", value: "Reino Cerámicos" },
     ],
   });
@@ -437,10 +462,26 @@ async function main() {
 
   // Zonales (uno por zona)
   const zonalData = [
-    { name: "María Zonal Norte", email: "zonal.norte@reino.com", zoneCode: "ZONA_NORTE" },
-    { name: "Pedro Zonal Sur", email: "zonal.sur@reino.com", zoneCode: "ZONA_SUR" },
-    { name: "Laura Zonal Oeste", email: "zonal.oeste@reino.com", zoneCode: "ZONA_OESTE" },
-    { name: "Carlos Zonal Noroeste", email: "zonal.noroeste@reino.com", zoneCode: "ZONA_NOROESTE" },
+    {
+      name: "María Zonal Norte",
+      email: "zonal.norte@reino.com",
+      zoneCode: "ZONA_NORTE",
+    },
+    {
+      name: "Pedro Zonal Sur",
+      email: "zonal.sur@reino.com",
+      zoneCode: "ZONA_SUR",
+    },
+    {
+      name: "Laura Zonal Oeste",
+      email: "zonal.oeste@reino.com",
+      zoneCode: "ZONA_OESTE",
+    },
+    {
+      name: "Carlos Zonal Noroeste",
+      email: "zonal.noroeste@reino.com",
+      zoneCode: "ZONA_NOROESTE",
+    },
   ];
 
   for (const zonal of zonalData) {
@@ -460,10 +501,26 @@ async function main() {
 
   // Encargados (uno por cada reino de ejemplo)
   const managerData = [
-    { name: "Juan Encargado R1", email: "encargado.r1@reino.com", storeCode: "120001" },
-    { name: "Ana Encargado R2", email: "encargado.r2@reino.com", storeCode: "120002" },
-    { name: "Luis Encargado R12", email: "encargado.r12@reino.com", storeCode: "120012" },
-    { name: "Pablo Encargado R17", email: "encargado.r17@reino.com", storeCode: "120017" },
+    {
+      name: "Juan Encargado R1",
+      email: "encargado.r1@reino.com",
+      storeCode: "120001",
+    },
+    {
+      name: "Ana Encargado R2",
+      email: "encargado.r2@reino.com",
+      storeCode: "120002",
+    },
+    {
+      name: "Luis Encargado R12",
+      email: "encargado.r12@reino.com",
+      storeCode: "120012",
+    },
+    {
+      name: "Pablo Encargado R17",
+      email: "encargado.r17@reino.com",
+      storeCode: "120017",
+    },
   ];
 
   for (const manager of managerData) {
@@ -483,14 +540,46 @@ async function main() {
 
   // Vendedores (2 por cada reino de ejemplo)
   const sellerData = [
-    { name: "Roberto Vendedor", email: "vendedor1.r1@reino.com", storeCode: "120001" },
-    { name: "Sofía Vendedor", email: "vendedor2.r1@reino.com", storeCode: "120001" },
-    { name: "Diego Vendedor", email: "vendedor1.r2@reino.com", storeCode: "120002" },
-    { name: "Camila Vendedor", email: "vendedor2.r2@reino.com", storeCode: "120002" },
-    { name: "Martín Vendedor", email: "vendedor1.r12@reino.com", storeCode: "120012" },
-    { name: "Lucía Vendedor", email: "vendedor2.r12@reino.com", storeCode: "120012" },
-    { name: "Fernando Vendedor", email: "vendedor1.r17@reino.com", storeCode: "120017" },
-    { name: "Carolina Vendedor", email: "vendedor2.r17@reino.com", storeCode: "120017" },
+    {
+      name: "Roberto Vendedor",
+      email: "vendedor1.r1@reino.com",
+      storeCode: "120001",
+    },
+    {
+      name: "Sofía Vendedor",
+      email: "vendedor2.r1@reino.com",
+      storeCode: "120001",
+    },
+    {
+      name: "Diego Vendedor",
+      email: "vendedor1.r2@reino.com",
+      storeCode: "120002",
+    },
+    {
+      name: "Camila Vendedor",
+      email: "vendedor2.r2@reino.com",
+      storeCode: "120002",
+    },
+    {
+      name: "Martín Vendedor",
+      email: "vendedor1.r12@reino.com",
+      storeCode: "120012",
+    },
+    {
+      name: "Lucía Vendedor",
+      email: "vendedor2.r12@reino.com",
+      storeCode: "120012",
+    },
+    {
+      name: "Fernando Vendedor",
+      email: "vendedor1.r17@reino.com",
+      storeCode: "120017",
+    },
+    {
+      name: "Carolina Vendedor",
+      email: "vendedor2.r17@reino.com",
+      storeCode: "120017",
+    },
   ];
 
   for (const seller of sellerData) {
@@ -508,7 +597,9 @@ async function main() {
     });
   }
 
-  console.log("Created sample agents (1 admin, 1 gerente, 3 zonales, 3 encargados, 6 vendedores)");
+  console.log(
+    "Created sample agents (1 admin, 1 gerente, 3 zonales, 3 encargados, 6 vendedores)",
+  );
   console.log("Admin: admin@reino.com / admin");
   console.log("All other passwords are: 123456");
   console.log("Seeding completed!");

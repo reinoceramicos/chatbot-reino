@@ -146,9 +146,41 @@ steps.set("select_zone", {
       },
     ],
   },
-  expectedInput: "list_reply",
+  expectedInput: "any",
+  processInput: (input: string): string => {
+    // Normalizar texto a ID de zona
+    const inputLower = input.toLowerCase();
+    if (input.startsWith("ZONA_") || input === "CABA") {
+      return input; // Ya es un ID válido
+    }
+    if (inputLower.includes("caba") || inputLower.includes("capital")) {
+      return "CABA";
+    }
+    if (inputLower.includes("noroeste")) {
+      return "ZONA_NOROESTE";
+    }
+    if (inputLower.includes("norte") && inputLower.includes("lejano")) {
+      return "ZONA_NORTE_LEJANO";
+    }
+    if (inputLower.includes("norte")) {
+      return "ZONA_NORTE";
+    }
+    if (inputLower.includes("oeste")) {
+      return "ZONA_OESTE";
+    }
+    if (inputLower.includes("sur")) {
+      return "ZONA_SUR";
+    }
+    return input;
+  },
   saveAs: "selectedZone",
-  nextStep: "select_store",
+  nextStep: (input: string) => {
+    const validZones = ["CABA", "ZONA_NORTE", "ZONA_NOROESTE", "ZONA_OESTE", "ZONA_SUR", "ZONA_NORTE_LEJANO"];
+    if (validZones.includes(input)) {
+      return "select_store";
+    }
+    return "select_zone";
+  },
 });
 
 steps.set("select_store", {

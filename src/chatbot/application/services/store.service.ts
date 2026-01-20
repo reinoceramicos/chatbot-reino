@@ -13,33 +13,13 @@ export interface ZoneInfo {
 }
 
 const ZONE_ID_TO_ZONE_NAME: Record<string, string[]> = {
-  zone_caba_norte: ["CABA Norte", "Belgrano", "Palermo", "Núñez"],
-  zone_caba_centro: ["CABA Centro", "Caballito", "Almagro", "Boedo"],
-  zone_caba_oeste: ["CABA Oeste", "Flores", "Liniers", "Mataderos"],
-  zone_norte_gba: [
-    "Zona Norte",
-    "Zona Norte GBA",
-    "Vicente López",
-    "San Isidro",
-    "Tigre",
-  ],
-  zone_sur: [
-    "Zona Sur",
-    "Zona Sur GBA",
-    "Quilmes",
-    "Lanús",
-    "Avellaneda",
-    "Lomas",
-  ],
-  zone_oeste: [
-    "Zona Oeste",
-    "Zona Oeste GBA",
-    "Morón",
-    "San Justo",
-    "Ituzaingó",
-    "Merlo",
-  ],
-  zone_la_plata: ["La Plata"],
+  // Nuevos IDs de zona (usados en los flujos)
+  CABA: ["CABA"],
+  ZONA_NORTE: ["Zona Norte"],
+  ZONA_NOROESTE: ["Zona Noroeste"],
+  ZONA_OESTE: ["Zona Oeste"],
+  ZONA_SUR: ["Zona Sur"],
+  ZONA_NORTE_LEJANO: ["Zona Norte Lejano"],
 };
 
 export class StoreService {

@@ -21,6 +21,7 @@ export interface FlowStep {
   dynamicPrompt?: (flowData: Record<string, any>) => Promise<FlowStepPrompt>;
   expectedInput: ExpectedInputType;
   validation?: (input: string) => boolean;
+  processInput?: (input: string) => string; // Transforma el input antes de guardarlo
   errorMessage?: string;
   nextStep: string | ((input: string, flowData: Record<string, any>) => string);
   saveAs?: string;
@@ -125,5 +126,15 @@ export class Flow {
       return true;
     }
     return step.validation(input);
+  }
+
+  /**
+   * Procesa/transforma la entrada antes de guardarla
+   */
+  processInput(step: FlowStep, input: string): string {
+    if (!step.processInput) {
+      return input;
+    }
+    return step.processInput(input);
   }
 }

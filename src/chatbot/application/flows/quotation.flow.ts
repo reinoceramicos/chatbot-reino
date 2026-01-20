@@ -173,9 +173,43 @@ steps.set("select_zone", {
       },
     ],
   },
-  expectedInput: "list_reply",
+  expectedInput: "any",
+  processInput: (input: string): string => {
+    // Normalizar texto a ID de zona
+    const inputLower = input.toLowerCase();
+    if (input.startsWith("ZONA_") || input === "CABA") {
+      return input; // Ya es un ID válido
+    }
+    if (inputLower.includes("caba") || inputLower.includes("capital")) {
+      return "CABA";
+    }
+    if (inputLower.includes("noroeste")) {
+      return "ZONA_NOROESTE";
+    }
+    if (inputLower.includes("norte") && inputLower.includes("lejano")) {
+      return "ZONA_NORTE_LEJANO";
+    }
+    if (inputLower.includes("norte")) {
+      return "ZONA_NORTE";
+    }
+    if (inputLower.includes("oeste")) {
+      return "ZONA_OESTE";
+    }
+    if (inputLower.includes("sur")) {
+      return "ZONA_SUR";
+    }
+    return input; // Devolver original si no se reconoce
+  },
   saveAs: "selectedZone",
-  nextStep: "select_store",
+  nextStep: (input: string) => {
+    // Verificar si es un ID de zona válido
+    const validZones = ["CABA", "ZONA_NORTE", "ZONA_NOROESTE", "ZONA_OESTE", "ZONA_SUR", "ZONA_NORTE_LEJANO"];
+    if (validZones.includes(input)) {
+      return "select_store";
+    }
+    // Input no reconocido, repetir
+    return "select_zone";
+  },
 });
 
 // Step 3e: Seleccionar tienda de la zona (dinámico desde base de datos)

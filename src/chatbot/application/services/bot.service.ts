@@ -1,6 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { Customer } from "../../domain/entities/customer.entity";
-import { Conversation, FlowType } from "../../domain/entities/conversation.entity";
+import {
+  Conversation,
+  FlowType,
+} from "../../domain/entities/conversation.entity";
 import { CustomerRepositoryPort } from "../../domain/ports/customer.repository.port";
 import { ConversationRepositoryPort } from "../../domain/ports/conversation.repository.port";
 import { AutoResponseService } from "./auto-response.service";
@@ -48,8 +51,10 @@ export interface BotResponse {
 }
 
 const DEFAULT_MESSAGES = {
-  TRANSFER_TO_AGENT: "Entendido, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌",
-  FALLBACK: "No pude procesar tu mensaje. Por favor, usá las opciones del menú.",
+  TRANSFER_TO_AGENT:
+    "Entendido, te voy a comunicar con uno de nuestros vendedores. En breve te contactamos. 🙌",
+  FALLBACK:
+    "No pude procesar tu mensaje. Por favor, usá las opciones del menú.",
 };
 
 export class BotService {
@@ -66,14 +71,17 @@ export class BotService {
     private readonly prisma?: PrismaClient,
     flowManager?: FlowManagerService,
     flowRepository?: FlowRepositoryPort,
-    storeService?: StoreService
+    storeService?: StoreService,
   ) {
     this.flowManager = flowManager || new FlowManagerService();
     this.storeService = storeService;
 
     // If a flow repository is provided, use dynamic flow loading
     if (flowRepository && storeService) {
-      this.dynamicFlowLoader = new DynamicFlowLoaderService(flowRepository, storeService);
+      this.dynamicFlowLoader = new DynamicFlowLoaderService(
+        flowRepository,
+        storeService,
+      );
     } else {
       // Fallback: register hardcoded flows
       this.registerDefaultFlows();
@@ -120,7 +128,10 @@ export class BotService {
 
       this.flowsInitialized = true;
     } catch (error) {
-      console.error("Error loading flows from database, using defaults:", error);
+      console.error(
+        "Error loading flows from database, using defaults:",
+        error,
+      );
       this.registerDefaultFlows();
       this.flowsInitialized = true;
     }
@@ -184,20 +195,53 @@ export class BotService {
   private async processFlowMessage(
     data: IncomingMessageData,
     conversation: Conversation,
-    customer: Customer
+    customer: Customer,
   ): Promise<BotResponse> {
     const baseResponse = {
       conversationId: conversation.id!,
       customerId: customer.id!,
     };
 
+    // Asegurar que el customerName esté en el flowData si el usuario ya confirmó su nombre
+    if (
+      customer.isReturningUser() &&
+      customer.name &&
+      !conversation.flowData?.customerName
+    ) {
+      conversation = new Conversation({
+        id: conversation.id,
+        customerId: conversation.customerId,
+        agentId: conversation.agentId,
+        storeId: conversation.storeId,
+        status: conversation.status,
+        context: conversation.context,
+        startedAt: conversation.startedAt,
+        resolvedAt: conversation.resolvedAt,
+        updatedAt: conversation.updatedAt,
+        flowType: conversation.flowType,
+        flowStep: conversation.flowStep,
+        flowData: {
+          ...conversation.flowData,
+          customerName: customer.name,
+        },
+        flowStartedAt: conversation.flowStartedAt,
+      });
+    }
+
     // Determinar el input y su tipo
     let input: string;
     let inputType: "text" | "button_reply" | "list_reply";
 
     // Manejar mensaje de ubicación GPS
-    if (data.messageType === "location" || data.location || data.metadata?.location) {
-      const locationResult = await this.handleLocationMessage(data, conversation);
+    if (
+      data.messageType === "location" ||
+      data.location ||
+      data.metadata?.location
+    ) {
+      const locationResult = await this.handleLocationMessage(
+        data,
+        conversation,
+      );
       if (locationResult) {
         // Actualizar flowData con la tienda encontrada
         const updatedFlowData = {
@@ -207,20 +251,37 @@ export class BotService {
 
         // Asignar storeId a la conversación si encontramos tienda
         if (locationResult.storeId) {
-          await this.conversationRepository.updateStoreId(conversation.id!, locationResult.storeId);
+          await this.conversationRepository.updateStoreId(
+            conversation.id!,
+            locationResult.storeId,
+          );
 
           // Log de asignación
-          console.log("═══════════════════════════════════════════════════════");
+          console.log(
+            "═══════════════════════════════════════════════════════",
+          );
           console.log("📍 UBICACIÓN RECIBIDA - ASIGNACIÓN DE TIENDA");
-          console.log("═══════════════════════════════════════════════════════");
+          console.log(
+            "═══════════════════════════════════════════════════════",
+          );
           console.log(`   Usuario: ${data.waId}`);
-          console.log(`   Coordenadas: ${locationResult.flowData.userLatitude}, ${locationResult.flowData.userLongitude}`);
-          console.log(`   ➜ Asignado a: ${locationResult.flowData.selectedStoreName}`);
-          console.log(`   ➜ Dirección: ${locationResult.flowData.selectedStoreAddress}`);
-          console.log(`   ➜ Distancia: ${locationResult.flowData.locationDistance} km`);
+          console.log(
+            `   Coordenadas: ${locationResult.flowData.userLatitude}, ${locationResult.flowData.userLongitude}`,
+          );
+          console.log(
+            `   ➜ Asignado a: ${locationResult.flowData.selectedStoreName}`,
+          );
+          console.log(
+            `   ➜ Dirección: ${locationResult.flowData.selectedStoreAddress}`,
+          );
+          console.log(
+            `   ➜ Distancia: ${locationResult.flowData.locationDistance} km`,
+          );
           console.log(`   ➜ Store ID: ${locationResult.storeId}`);
           console.log(`   ➜ Conversación: ${conversation.id}`);
-          console.log("═══════════════════════════════════════════════════════");
+          console.log(
+            "═══════════════════════════════════════════════════════",
+          );
         }
 
         // Actualizar el flujo con los datos de ubicación
@@ -244,10 +305,14 @@ export class BotService {
     } else if (data.interactiveReplyId) {
       input = data.interactiveReplyId;
       // Determinar tipo de interacción desde metadata
-      const interactiveType = data.metadata?.interactiveType || data.metadata?.interactive?.type;
-      inputType = data.messageType === "interactive"
-        ? (interactiveType === "list_reply" ? "list_reply" : "button_reply")
-        : "button_reply";
+      const interactiveType =
+        data.metadata?.interactiveType || data.metadata?.interactive?.type;
+      inputType =
+        data.messageType === "interactive"
+          ? interactiveType === "list_reply"
+            ? "list_reply"
+            : "button_reply"
+          : "button_reply";
     } else {
       input = data.content || "";
       inputType = "text";
@@ -269,7 +334,7 @@ export class BotService {
       conversation,
       input,
       inputType,
-      data.waId
+      data.waId,
     );
 
     if (!result) {
@@ -299,8 +364,13 @@ export class BotService {
 
     // Si el flujo indica que se debe confirmar el nombre, hacerlo
     if (result.confirmName && result.newFlowData?.userName) {
-      await this.customerRepository.confirmName(customer.id!, result.newFlowData.userName);
-      console.log(`✅ Nombre confirmado: ${result.newFlowData.userName} para cliente ${customer.id}`);
+      await this.customerRepository.confirmName(
+        customer.id!,
+        result.newFlowData.userName,
+      );
+      console.log(
+        `✅ Nombre confirmado: ${result.newFlowData.userName} para cliente ${customer.id}`,
+      );
     }
 
     // Actualizar estado del flujo
@@ -314,11 +384,17 @@ export class BotService {
             where: { code: storeCode },
           });
           if (store) {
-            await this.conversationRepository.updateStoreId(conversation.id!, store.id);
+            await this.conversationRepository.updateStoreId(
+              conversation.id!,
+              store.id,
+            );
           }
         }
 
-        await this.conversationRepository.updateStatus(conversation.id!, "WAITING");
+        await this.conversationRepository.updateStatus(
+          conversation.id!,
+          "WAITING",
+        );
         return {
           ...baseResponse,
           shouldRespond: true,
@@ -340,11 +416,16 @@ export class BotService {
     };
   }
 
-  private async getOrCreateCustomer(waId: string, name: string): Promise<Customer> {
+  private async getOrCreateCustomer(
+    waId: string,
+    name: string,
+  ): Promise<Customer> {
     let customer = await this.customerRepository.findByWaId(waId);
 
     if (!customer) {
-      customer = await this.customerRepository.create(Customer.create(waId, name));
+      customer = await this.customerRepository.create(
+        Customer.create(waId, name),
+      );
     } else if (name && customer.name !== name) {
       // Actualizar nombre si cambió
       customer = await this.customerRepository.update(customer.id!, { name });
@@ -353,12 +434,15 @@ export class BotService {
     return customer;
   }
 
-  private async getOrCreateConversation(customerId: string): Promise<Conversation> {
-    let conversation = await this.conversationRepository.findActiveByCustomerId(customerId);
+  private async getOrCreateConversation(
+    customerId: string,
+  ): Promise<Conversation> {
+    let conversation =
+      await this.conversationRepository.findActiveByCustomerId(customerId);
 
     if (!conversation) {
       conversation = await this.conversationRepository.create(
-        Conversation.createNew(customerId)
+        Conversation.createNew(customerId),
       );
     }
 
@@ -368,7 +452,7 @@ export class BotService {
   private async saveIncomingMessage(
     data: IncomingMessageData,
     conversationId: string,
-    customerId: string
+    customerId: string,
   ): Promise<void> {
     // For interactive messages, use the button/list reply title as content
     let content = data.content;
@@ -392,7 +476,7 @@ export class BotService {
   private async generateResponse(
     data: IncomingMessageData,
     conversation: Conversation,
-    customer: Customer
+    customer: Customer,
   ): Promise<BotResponse> {
     const baseResponse = {
       conversationId: conversation.id!,
@@ -406,15 +490,22 @@ export class BotService {
     if (customer.isNewUser()) {
       // Usuario nuevo: iniciar onboarding para pedir nombre
       flowToStart = "onboarding";
-      console.log(`🆕 Usuario nuevo detectado: ${data.waId} - iniciando onboarding`);
+      console.log(
+        `🆕 Usuario nuevo detectado: ${data.waId} - iniciando onboarding`,
+      );
     } else {
       // Usuario recurrente: personalizar el saludo e ir directo al menú
       flowToStart = "main_menu";
       flowData = { customerName: customer.name };
-      console.log(`👋 Usuario recurrente: ${customer.name} (${data.waId}) - mostrando menú`);
+      console.log(
+        `👋 Usuario recurrente: ${customer.name} (${data.waId}) - mostrando menú`,
+      );
     }
 
-    const flowResult = await this.flowManager.startFlow(flowToStart!, data.waId);
+    const flowResult = await this.flowManager.startFlow(
+      flowToStart!,
+      data.waId,
+    );
 
     if (!flowResult) {
       return {
@@ -441,7 +532,7 @@ export class BotService {
   async saveOutgoingMessage(
     conversationId: string,
     customerId: string,
-    content: string
+    content: string,
   ): Promise<void> {
     await this.messageRepository.save({
       conversationId,
@@ -459,17 +550,24 @@ export class BotService {
    */
   private async handleLocationMessage(
     data: IncomingMessageData,
-    conversation: Conversation
+    conversation: Conversation,
   ): Promise<{ flowData: Record<string, any>; storeId?: string } | null> {
     // Extract location from various sources
     const location = data.location || data.metadata?.location;
 
-    if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+    if (
+      !location ||
+      typeof location.latitude !== "number" ||
+      typeof location.longitude !== "number"
+    ) {
       console.log("Invalid location data received:", location);
       return null;
     }
 
-    console.log("Processing location:", { lat: location.latitude, lng: location.longitude });
+    console.log("Processing location:", {
+      lat: location.latitude,
+      lng: location.longitude,
+    });
 
     // Find nearest store using database
     if (!this.prisma) {
@@ -498,7 +596,7 @@ export class BotService {
       }
 
       // Calculate distance to each store and find nearest
-      let nearestStore: typeof stores[0] | null = null;
+      let nearestStore: (typeof stores)[0] | null = null;
       let minDistance = Infinity;
 
       for (const store of stores) {
@@ -507,7 +605,7 @@ export class BotService {
             location.latitude,
             location.longitude,
             store.latitude,
-            store.longitude
+            store.longitude,
           );
 
           if (distance < minDistance) {
@@ -522,7 +620,9 @@ export class BotService {
         return null;
       }
 
-      console.log(`Nearest store: ${nearestStore.name} (${minDistance.toFixed(2)} km)`);
+      console.log(
+        `Nearest store: ${nearestStore.name} (${minDistance.toFixed(2)} km)`,
+      );
 
       // Return flow data with store info
       return {
@@ -552,7 +652,7 @@ export class BotService {
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number
+    lon2: number,
   ): number {
     const R = 6371; // Earth's radius in km
     const dLat = this.toRad(lat2 - lat1);

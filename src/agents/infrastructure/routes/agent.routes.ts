@@ -6,6 +6,7 @@ import { LocalAuthAdapter } from "../adapters/local-auth.adapter";
 import { AgentConversationService } from "../../application/services/agent-conversation.service";
 import { PrismaAgentRepository } from "../repositories/prisma-agent.repository";
 import { prisma } from "../../../shared/infrastructure/database/prisma.service";
+import { flowRouter } from "../../../flows/infrastructure/routes/flow.routes";
 
 // Inicializar dependencias
 const agentRepository = new PrismaAgentRepository(prisma);
@@ -79,5 +80,8 @@ agentRouter.post("/conversations/:conversationId/transfer", (req: AuthenticatedR
 agentRouter.get("/conversations/:conversationId", (req: AuthenticatedRequest, res) =>
   agentController.getConversation(req, res)
 );
+
+// Mount flow routes under /flows (for frontend compatibility at /api/agents/flows)
+agentRouter.use("/flows", flowRouter);
 
 export { agentRouter };

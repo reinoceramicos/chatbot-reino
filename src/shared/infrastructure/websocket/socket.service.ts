@@ -3,6 +3,7 @@ import { Server, Socket } from "socket.io";
 import * as jwt from "jsonwebtoken";
 import { envConfig } from "../../config/env.config";
 import { TokenPayload } from "../../../agents/domain/ports/auth.port";
+import { log } from "../../../webhook/application/handlers/base.handler";
 
 interface AuthenticatedSocket extends Socket {
   agent?: TokenPayload;
@@ -28,7 +29,7 @@ export class SocketService {
     this.setupEventHandlers();
 
     socketServiceInstance = this;
-    console.log("WebSocket server initialized");
+    log("WEBSOCKET_INITIALIZED", { status: "ready" });
   }
 
   private setupMiddleware(): void {
@@ -59,7 +60,7 @@ export class SocketService {
         return;
       }
 
-      console.log(`Agent connected: ${agent.email} (${agent.agentId})`);
+      log("AGENT_CONNECTED", { email: agent.email, agentId: agent.agentId });
 
       // Registrar el socket del agente
       this.agentSockets.set(agent.agentId, socket.id);
@@ -81,13 +82,13 @@ export class SocketService {
       // Evento para unirse a una conversación específica
       socket.on("join:conversation", (conversationId: string) => {
         socket.join(`conversation:${conversationId}`);
-        console.log(`Agent ${agent.email} joined conversation: ${conversationId}`);
+        log("AGENT_JOINED_CONVERSATION", { email: agent.email, conversationId });
       });
 
       // Evento para salir de una conversación
       socket.on("leave:conversation", (conversationId: string) => {
         socket.leave(`conversation:${conversationId}`);
-        console.log(`Agent ${agent.email} left conversation: ${conversationId}`);
+        log("AGENT_LEFT_CONVERSATION", { email: agent.email, conversationId });
       });
 
       // Evento cuando el agente está escribiendo
@@ -108,7 +109,7 @@ export class SocketService {
 
       // Desconexión
       socket.on("disconnect", () => {
-        console.log(`Agent disconnected: ${agent.email}`);
+        log("AGENT_DISCONNECTED", { email: agent.email, agentId: agent.agentId });
         this.agentSockets.delete(agent.agentId);
       });
     });

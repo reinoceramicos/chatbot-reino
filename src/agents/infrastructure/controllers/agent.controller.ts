@@ -12,6 +12,9 @@ import { envConfig } from "../../../shared/config/env.config";
 // WebSocket
 import { getSocketService } from "../../../shared/infrastructure/websocket/socket.service";
 
+// Logging
+import { log } from "../../../webhook/application/handlers/base.handler";
+
 const messagingAdapter = new WhatsAppCloudAdapter();
 const sendTextUseCase = new SendTextUseCase(messagingAdapter);
 
@@ -435,7 +438,7 @@ export class AgentController {
         messageId: result.messageId,
       });
     } catch (error: any) {
-      console.error("Error sending message:", error);
+      log("SEND_MESSAGE_ERROR", { error: error.message, stack: error.stack });
       res.status(500).json({ error: "Error al enviar el mensaje" });
     }
   }
@@ -456,7 +459,7 @@ export class AgentController {
 
       res.json({ agents });
     } catch (error: any) {
-      console.error("[getAvailableAgentsForTransfer] Error:", error.message, error.stack);
+      log("GET_AVAILABLE_AGENTS_ERROR", { error: error.message, stack: error.stack });
       res.status(500).json({ error: "Error interno del servidor", details: error.message });
     }
   }

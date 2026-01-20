@@ -208,15 +208,15 @@ export const receiveMessage = async (req: Request, res: Response) => {
           conversationId: botResponse.conversationId,
         });
 
+        // Obtener storeId de la conversación para routing (cached for reuse)
+        const conversation = await prisma.conversation.findUnique({
+          where: { id: botResponse.conversationId },
+          select: { storeId: true },
+        });
+
         // Emitir mensaje por WebSocket a los agentes
         const socketService = getSocketService();
         if (socketService) {
-          // Obtener storeId de la conversación para routing
-          const conversation = await prisma.conversation.findUnique({
-            where: { id: botResponse.conversationId },
-            select: { storeId: true },
-          });
-
           // For interactive messages, use the button/list reply title as content
           let messageContent = message.content.text;
           if (message.type === "interactive" && interactiveReplyTitle) {
@@ -294,17 +294,12 @@ export const receiveMessage = async (req: Request, res: Response) => {
               customerId: botResponse.customerId,
             });
 
-            // Emitir nueva conversación en espera
+            // Emitir nueva conversación en espera (reuse cached conversation)
             const socketSvc = getSocketService();
             if (socketSvc) {
-              const conv = await prisma.conversation.findUnique({
-                where: { id: botResponse.conversationId },
-                select: { storeId: true },
-              });
-
               socketSvc.emitNewWaitingConversation({
                 conversationId: botResponse.conversationId,
-                storeId: conv?.storeId || undefined,
+                storeId: conversation?.storeId || undefined,
                 customer: {
                   id: botResponse.customerId,
                   name: message.sender.name,

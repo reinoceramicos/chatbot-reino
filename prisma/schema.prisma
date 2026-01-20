@@ -258,3 +258,117 @@ model BotConfig {
 
   @@map("bot_config")
 }
+
+// ============================================
+// FLUJOS CONFIGURABLES
+// ============================================
+
+enum FlowStepType {
+  TEXT              // Mensaje de texto simple
+  BUTTON            // Mensaje con botones (máximo 3)
+  LIST              // Lista desplegable (máximo 10 items)
+  LOCATION_REQUEST  // Solicita ubicación
+  DYNAMIC_LIST      // Lista que se llena dinámicamente
+}
+
+enum FlowExpectedInput {
+  TEXT          // Espera texto libre
+  BUTTON_REPLY  // Espera clic en botón
+  LIST_REPLY    // Espera selección de lista
+  LOCATION      // Espera ubicación GPS
+  ANY           // Acepta cualquier tipo
+  NONE          // No espera respuesta (mensaje final)
+}
+
+enum FlowDynamicDataSource {
+  stores_by_zone  // Tiendas filtradas por zona seleccionada
+  all_stores      // Todas las tiendas
+  all_zones       // Todas las zonas
+}
+
+model Flow {
+  id              String   @id @default(cuid())
+  code            String   @unique // Código único (ej: "main_menu", "quotation")
+  name            String   // Nombre visible
+  description     String?  // Descripción del flujo
+  isActive        Boolean  @default(true) @map("is_active")
+  isDefault       Boolean  @default(false) @map("is_default") // Solo puede haber uno
+  initialStepId   String?  @map("initial_step_id") // ID del step inicial
+  timeoutMinutes  Int      @default(30) @map("timeout_minutes") // Minutos antes de expirar
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  steps           FlowStep[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([isDefault])
+  @@map("flows")
+}
+
+model FlowStep {
+  id                String                  @id @default(cuid())
+  flowId            String                  @map("flow_id")
+  code              String                  // Código único dentro del flujo
+  name              String                  // Nombre descriptivo
+  order             Int                     @default(0) // Orden de visualización
+  stepType          FlowStepType            @default(TEXT) @map("step_type")
+  expectedInput     FlowExpectedInput       @default(TEXT) @map("expected_input")
+  messageBody       String                  @map("message_body") // Texto del mensaje
+  messageHeader     String?                 @map("message_header")
+  messageFooter     String?                 @map("message_footer")
+  listButtonText    String?                 @map("list_button_text") // Texto del botón para listas
+  validationRegex   String?                 @map("validation_regex") // Regex para validar respuesta
+  errorMessage      String?                 @map("error_message") // Mensaje si validación falla
+  saveResponseAs    String?                 @map("save_response_as") // Variable donde guardar respuesta
+  transferToAgent   Boolean                 @default(false) @map("transfer_to_agent")
+  switchToFlow      String?                 @map("switch_to_flow") // Código de flujo al que cambiar
+  dynamicDataSource FlowDynamicDataSource?  @map("dynamic_data_source")
+  defaultNextStepId String?                 @map("default_next_step_id")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  flow              Flow                    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  options           FlowStepOption[]
+  transitions       FlowStepTransition[]
+
+  @@unique([flowId, code])
+  @@index([flowId])
+  @@index([order])
+  @@map("flow_steps")
+}
+
+model FlowStepOption {
+  id          String   @id @default(cuid())
+  stepId      String   @map("step_id")
+  optionId    String   @map("option_id") // ID que se envía cuando el usuario selecciona
+  title       String   // Texto visible (máx 24 chars listas, 20 botones)
+  description String?  // Descripción (solo para listas, máx 72 chars)
+  section     String?  // Sección/agrupación (solo para listas)
+  order       Int      @default(0) // Orden de visualización
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  step        FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@index([order])
+  @@map("flow_step_options")
+}
+
+model FlowStepTransition {
+  id           String   @id @default(cuid())
+  stepId       String   @map("step_id")
+  condition    String   // Valor que activa esta transición (o "*" para cualquiera)
+  nextStepId   String?  @map("next_step_id") // ID del siguiente step
+  switchToFlow String?  @map("switch_to_flow") // Código de flujo al que cambiar
+  order        Int      @default(0) // Prioridad (menor = se evalúa primero)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  step         FlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@index([order])
+  @@map("flow_step_transitions")
+}

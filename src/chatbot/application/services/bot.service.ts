@@ -10,6 +10,7 @@ import { PrismaMessageRepository, SaveMessageParams } from "../../infrastructure
 import { Message } from "../../../messaging/domain/entities/message.entity";
 import { quotationFlow } from "../flows/quotation.flow";
 import { infoFlow } from "../flows/info.flow";
+import { log } from "../../../webhook/application/handlers/base.handler";
 
 export interface IncomingMessageData {
   waId: string;
@@ -116,7 +117,7 @@ export class BotService {
       inputType = "text";
     }
 
-    console.log("[FLOW_DEBUG]", {
+    log("FLOW_DEBUG", {
       flowType: conversation.flowType,
       flowStep: conversation.flowStep,
       input,

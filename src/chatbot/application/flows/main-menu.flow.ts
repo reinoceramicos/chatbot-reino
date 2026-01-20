@@ -67,7 +67,18 @@ steps.set("waiting_location", {
   },
   expectedInput: "any",
   saveAs: "locationInput",
-  nextStep: "transfer_to_agent",
+  nextStep: (input: string, flowData: Record<string, any>) => {
+    // Si recibió ubicación GPS (el bot.service setea esto)
+    if (input === "location_received" || flowData.assignedStoreCode) {
+      return "transfer_to_agent";
+    }
+    // Si escribe "zona", ir a selección manual
+    if (input.toLowerCase().includes("zona")) {
+      return "select_zone";
+    }
+    // Cualquier otro texto, repetir el pedido de ubicación
+    return "waiting_location";
+  },
 });
 
 steps.set("select_zone", {

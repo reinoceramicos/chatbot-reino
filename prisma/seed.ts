@@ -198,7 +198,7 @@ const storesData = [
   },
   {
     code: "120020",
-    name: "Reino 20 - Ing. Maschwitz",
+    name: "Reino 20 - Maschwitz",
     address: "Colectora Este Ramal Escobar 40969, Ingeniero Maschwitz",
     zone: "Zona Norte",
     latitude: -34.4025,
@@ -602,7 +602,826 @@ async function main() {
   );
   console.log("Admin: admin@reino.com / admin");
   console.log("All other passwords are: 123456");
-  console.log("Seeding completed!");
+
+  // FLUJOS DE EJEMPLO PARA LA BASE DE DATOS
+
+  // Limpiar flujos existentes
+  await prisma.flowStepTransition.deleteMany();
+  await prisma.flowStepOption.deleteMany();
+  await prisma.flowStep.deleteMany();
+  await prisma.flowDefinition.deleteMany();
+
+  // 1. FLUJO: MENÚ PRINCIPAL
+  const mainMenuFlow = await prisma.flowDefinition.create({
+    data: {
+      code: "main_menu",
+      name: "Menú Principal",
+      description: "Menú inicial que se muestra a usuarios recurrentes",
+      isActive: true,
+      isDefault: true,
+      timeoutMinutes: 30,
+    },
+  });
+
+  // Steps del menú principal
+  const mainMenuWelcome = await prisma.flowStep.create({
+    data: {
+      flowId: mainMenuFlow.id,
+      code: "welcome",
+      name: "Bienvenida con opciones",
+      order: 1,
+      stepType: "BUTTON",
+      expectedInput: "BUTTON_REPLY",
+      messageBody: "¡Hola {customerName}! 👋 ¿En qué puedo ayudarte hoy?",
+      messageHeader: "Reino Cerámicos",
+      saveResponseAs: "menuSelection",
+    },
+  });
+
+  // Opciones del menú principal
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: mainMenuWelcome.id,
+        optionId: "menu_comprar",
+        title: "Quiero comprar",
+        order: 1,
+      },
+      {
+        stepId: mainMenuWelcome.id,
+        optionId: "menu_consultas",
+        title: "Tengo consultas",
+        order: 2,
+      },
+      {
+        stepId: mainMenuWelcome.id,
+        optionId: "menu_vendedor",
+        title: "Hablar con vendedor",
+        order: 3,
+      },
+    ],
+  });
+
+  // Transiciones del menú principal
+  await prisma.flowStepTransition.createMany({
+    data: [
+      {
+        stepId: mainMenuWelcome.id,
+        condition: "menu_comprar",
+        switchToFlow: "quotation",
+        order: 1,
+      },
+      {
+        stepId: mainMenuWelcome.id,
+        condition: "menu_consultas",
+        switchToFlow: "info",
+        order: 2,
+      },
+      {
+        stepId: mainMenuWelcome.id,
+        condition: "menu_vendedor",
+        nextStepId: null,
+        order: 3,
+      }, // END -> transfer
+    ],
+  });
+
+  // Actualizar step inicial
+  await prisma.flowDefinition.update({
+    where: { id: mainMenuFlow.id },
+    data: { initialStepId: mainMenuWelcome.id },
+  });
+
+  console.log("Created flow: main_menu");
+
+  // 2. FLUJO: COTIZACIÓN
+  const quotationFlow = await prisma.flowDefinition.create({
+    data: {
+      code: "quotation",
+      name: "Cotización de Productos",
+      description:
+        "Flujo para solicitar cotización, recopila categoría, detalles, cantidad y ubicación",
+      isActive: true,
+      isDefault: false,
+      timeoutMinutes: 30,
+    },
+  });
+
+  // Steps de cotización
+  const selectCategory = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "select_category",
+      name: "Seleccionar categoría",
+      order: 1,
+      stepType: "LIST",
+      expectedInput: "LIST_REPLY",
+      messageBody:
+        "¡Excelente! Para prepararte una cotización, ¿qué tipo de producto te interesa?",
+      messageHeader: "Cotización",
+      listButtonText: "Ver categorías",
+      saveResponseAs: "category",
+    },
+  });
+
+  // Opciones de categorías
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_ceramico",
+        title: "Cerámicos",
+        description: "Pisos cerámicos varios",
+        section: "Pisos",
+        order: 1,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_porcelanato",
+        title: "Porcelanato",
+        description: "Alta resistencia",
+        section: "Pisos",
+        order: 2,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_vinilico",
+        title: "Vinílicos",
+        description: "Fácil instalación",
+        section: "Pisos",
+        order: 3,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_azulejos",
+        title: "Azulejos",
+        description: "Para paredes",
+        section: "Revestimientos",
+        order: 4,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_mosaicos",
+        title: "Mosaicos",
+        description: "Decorativos",
+        section: "Revestimientos",
+        order: 5,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_pegamentos",
+        title: "Pegamentos",
+        description: "Adhesivos y pastinas",
+        section: "Otros",
+        order: 6,
+      },
+      {
+        stepId: selectCategory.id,
+        optionId: "cat_otro",
+        title: "Otro producto",
+        description: "Consultar disponibilidad",
+        section: "Otros",
+        order: 7,
+      },
+    ],
+  });
+
+  const askDetails = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "ask_details",
+      name: "Pedir detalles",
+      order: 2,
+      stepType: "TEXT",
+      expectedInput: "TEXT",
+      messageBody:
+        "¿Podrías darme más detalles? Por ejemplo: medidas, color, modelo o cualquier característica que busques.",
+      messageFooter: "Mínimo 10 caracteres",
+      validationRegex: "^.{10,}$",
+      errorMessage:
+        "Por favor, dame más detalles sobre el producto que buscás (al menos 10 caracteres). Ejemplo: porcelanato 60x60 simil madera",
+      saveResponseAs: "details",
+    },
+  });
+
+  const askQuantity = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "ask_quantity",
+      name: "Preguntar cantidad",
+      order: 3,
+      stepType: "TEXT",
+      expectedInput: "TEXT",
+      messageBody:
+        "¿Qué cantidad necesitas? (metros cuadrados, cajas, unidades)",
+      messageFooter: "Ejemplo: 50 m2, 10 cajas, 100 unidades",
+      validationRegex: "\\d+",
+      errorMessage:
+        "Por favor, indicá la cantidad con un número. Ejemplo: 50 m2, 10 cajas, 100 unidades",
+      saveResponseAs: "quantity",
+    },
+  });
+
+  const askLocationMethod = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "ask_location_method",
+      name: "Método de ubicación",
+      order: 4,
+      stepType: "BUTTON",
+      expectedInput: "BUTTON_REPLY",
+      messageBody:
+        "Para conectarte con el Reino más cercano, ¿cómo preferís indicar tu ubicación?",
+      messageHeader: "Ubicación",
+      messageFooter: "Tenemos 24 locales en Buenos Aires",
+      saveResponseAs: "locationMethod",
+    },
+  });
+
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: askLocationMethod.id,
+        optionId: "location_gps",
+        title: "Compartir ubicación",
+        order: 1,
+      },
+      {
+        stepId: askLocationMethod.id,
+        optionId: "location_zone",
+        title: "Elegir zona",
+        order: 2,
+      },
+    ],
+  });
+
+  const waitingLocation = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "waiting_location",
+      name: "Esperando GPS",
+      order: 5,
+      stepType: "TEXT",
+      expectedInput: "LOCATION",
+      messageBody:
+        "Perfecto, enviame tu ubicación usando el botón de adjuntar 📎 > Ubicación en WhatsApp.\n\nSi preferís elegir la zona manualmente, escribí *zona*",
+      saveResponseAs: "locationInput",
+    },
+  });
+
+  const selectZone = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "select_zone",
+      name: "Seleccionar zona",
+      order: 6,
+      stepType: "LIST",
+      expectedInput: "LIST_REPLY",
+      messageBody: "Seleccioná la zona donde te encontrás:",
+      listButtonText: "Ver zonas",
+      saveResponseAs: "selectedZone",
+    },
+  });
+
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: selectZone.id,
+        optionId: "CABA",
+        title: "CABA",
+        description: "Paternal, Villa Crespo",
+        section: "Capital Federal",
+        order: 1,
+      },
+      {
+        stepId: selectZone.id,
+        optionId: "ZONA_NORTE",
+        title: "Zona Norte",
+        description: "San Martín, Tigre, Nordelta",
+        section: "Zona Norte",
+        order: 2,
+      },
+      {
+        stepId: selectZone.id,
+        optionId: "ZONA_NOROESTE",
+        title: "Zona Noroeste",
+        description: "Pilar, San Miguel, José C. Paz",
+        section: "Zona Noroeste",
+        order: 3,
+      },
+      {
+        stepId: selectZone.id,
+        optionId: "ZONA_OESTE",
+        title: "Zona Oeste",
+        description: "Moreno, Gral Rodriguez, Luján",
+        section: "Zona Oeste",
+        order: 4,
+      },
+      {
+        stepId: selectZone.id,
+        optionId: "ZONA_SUR",
+        title: "Zona Sur",
+        description: "Cañuelas, Berazategui",
+        section: "Zona Sur",
+        order: 5,
+      },
+      {
+        stepId: selectZone.id,
+        optionId: "ZONA_NORTE_LEJANO",
+        title: "Zona Norte Lejano",
+        description: "Campana, Capilla del Señor",
+        section: "Zona Norte Lejano",
+        order: 6,
+      },
+    ],
+  });
+
+  const selectStore = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "select_store",
+      name: "Seleccionar tienda",
+      order: 7,
+      stepType: "DYNAMIC_LIST",
+      expectedInput: "LIST_REPLY",
+      messageBody:
+        "Estos son los Reinos disponibles en tu zona. ¿Cuál te queda más cómodo?",
+      listButtonText: "Ver Reinos",
+      dynamicDataSource: "stores_by_zone",
+      saveResponseAs: "selectedStoreCode",
+    },
+  });
+
+  const transferToAgent = await prisma.flowStep.create({
+    data: {
+      flowId: quotationFlow.id,
+      code: "transfer_to_agent",
+      name: "Transferir a vendedor",
+      order: 8,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "¡Listo! Un vendedor de {selectedStoreName} te va a contactar por acá para prepararte la cotización. 🙌",
+      transferToAgent: true,
+    },
+  });
+
+  // Transiciones de cotización
+  await prisma.flowStepTransition.createMany({
+    data: [
+      // select_category -> ask_details (todas las categorías)
+      {
+        stepId: selectCategory.id,
+        condition: "cat_ceramico",
+        nextStepId: askDetails.id,
+        order: 1,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_porcelanato",
+        nextStepId: askDetails.id,
+        order: 2,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_vinilico",
+        nextStepId: askDetails.id,
+        order: 3,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_azulejos",
+        nextStepId: askDetails.id,
+        order: 4,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_mosaicos",
+        nextStepId: askDetails.id,
+        order: 5,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_pegamentos",
+        nextStepId: askDetails.id,
+        order: 6,
+      },
+      {
+        stepId: selectCategory.id,
+        condition: "cat_otro",
+        nextStepId: askDetails.id,
+        order: 7,
+      },
+      // ask_location_method branching
+      {
+        stepId: askLocationMethod.id,
+        condition: "location_gps",
+        nextStepId: waitingLocation.id,
+        order: 1,
+      },
+      {
+        stepId: askLocationMethod.id,
+        condition: "location_zone",
+        nextStepId: selectZone.id,
+        order: 2,
+      },
+      // waiting_location -> transfer (cuando recibe GPS) o select_zone (si escribe "zona")
+      {
+        stepId: waitingLocation.id,
+        condition: "location_received",
+        nextStepId: transferToAgent.id,
+        order: 1,
+      },
+      {
+        stepId: waitingLocation.id,
+        condition: "zona",
+        nextStepId: selectZone.id,
+        order: 2,
+      },
+      // select_zone -> select_store
+      {
+        stepId: selectZone.id,
+        condition: "CABA",
+        nextStepId: selectStore.id,
+        order: 1,
+      },
+      {
+        stepId: selectZone.id,
+        condition: "ZONA_NORTE",
+        nextStepId: selectStore.id,
+        order: 2,
+      },
+      {
+        stepId: selectZone.id,
+        condition: "ZONA_NOROESTE",
+        nextStepId: selectStore.id,
+        order: 3,
+      },
+      {
+        stepId: selectZone.id,
+        condition: "ZONA_OESTE",
+        nextStepId: selectStore.id,
+        order: 4,
+      },
+      {
+        stepId: selectZone.id,
+        condition: "ZONA_SUR",
+        nextStepId: selectStore.id,
+        order: 5,
+      },
+      {
+        stepId: selectZone.id,
+        condition: "ZONA_NORTE_LEJANO",
+        nextStepId: selectStore.id,
+        order: 6,
+      },
+    ],
+  });
+
+  // Default next steps
+  await prisma.flowStep.update({
+    where: { id: selectCategory.id },
+    data: { defaultNextStepId: askDetails.id },
+  });
+  await prisma.flowStep.update({
+    where: { id: askDetails.id },
+    data: { defaultNextStepId: askQuantity.id },
+  });
+  await prisma.flowStep.update({
+    where: { id: askQuantity.id },
+    data: { defaultNextStepId: askLocationMethod.id },
+  });
+  await prisma.flowStep.update({
+    where: { id: selectStore.id },
+    data: { defaultNextStepId: transferToAgent.id },
+  });
+
+  // Actualizar step inicial
+  await prisma.flowDefinition.update({
+    where: { id: quotationFlow.id },
+    data: { initialStepId: selectCategory.id },
+  });
+
+  console.log("Created flow: quotation");
+
+  // 3. FLUJO: INFORMACIÓN
+  const infoFlow = await prisma.flowDefinition.create({
+    data: {
+      code: "info",
+      name: "Información General",
+      description:
+        "Flujo para consultas sobre horarios, ubicación, envíos y pagos",
+      isActive: true,
+      isDefault: false,
+      timeoutMinutes: 30,
+    },
+  });
+
+  const infoMenu = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_menu",
+      name: "Menú de información",
+      order: 1,
+      stepType: "LIST",
+      expectedInput: "LIST_REPLY",
+      messageBody: "¿Sobre qué tema necesitás información?",
+      messageHeader: "Consultas",
+      listButtonText: "Ver opciones",
+      saveResponseAs: "infoTopic",
+    },
+  });
+
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: infoMenu.id,
+        optionId: "info_horarios",
+        title: "Horarios",
+        description: "Días y horarios de atención",
+        section: "Información",
+        order: 1,
+      },
+      {
+        stepId: infoMenu.id,
+        optionId: "info_ubicacion",
+        title: "Ubicación",
+        description: "Direcciones de los Reinos",
+        section: "Información",
+        order: 2,
+      },
+      {
+        stepId: infoMenu.id,
+        optionId: "info_envios",
+        title: "Envíos",
+        description: "Cobertura y costos",
+        section: "Servicios",
+        order: 3,
+      },
+      {
+        stepId: infoMenu.id,
+        optionId: "info_pagos",
+        title: "Formas de pago",
+        description: "Medios de pago aceptados",
+        section: "Servicios",
+        order: 4,
+      },
+      {
+        stepId: infoMenu.id,
+        optionId: "info_otra",
+        title: "Otra consulta",
+        description: "Hablar con un vendedor",
+        section: "Otros",
+        order: 5,
+      },
+    ],
+  });
+
+  const infoHorarios = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_horarios",
+      name: "Respuesta horarios",
+      order: 2,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "📅 *Horarios de atención:*\n\n🕐 Lunes a Viernes: 8:00 a 18:00\n🕐 Sábados: 8:00 a 13:00\n🚫 Domingos: Cerrado\n\n¿Te puedo ayudar con algo más?",
+    },
+  });
+
+  const infoUbicacion = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_ubicacion",
+      name: "Respuesta ubicación",
+      order: 3,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "📍 Contamos con *24 Reinos* en toda la zona de Buenos Aires.\n\nPara encontrar el más cercano, podés:\n• Compartir tu ubicación\n• Visitá reino.com.ar/sucursales\n\n¿Querés que te ayude a encontrar el Reino más cercano?",
+    },
+  });
+
+  const infoEnvios = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_envios",
+      name: "Respuesta envíos",
+      order: 4,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "🚚 *Información de envíos:*\n\n✅ Realizamos envíos a todo AMBA\n📦 Envío gratis en compras mayores a $50.000\n🏠 También podés retirar en cualquier Reino\n\n¿Querés cotizar un envío?",
+    },
+  });
+
+  const infoPagos = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_pagos",
+      name: "Respuesta pagos",
+      order: 5,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "💳 *Formas de pago:*\n\n✅ Efectivo\n✅ Transferencia bancaria\n✅ Tarjeta de débito\n✅ Tarjeta de crédito (hasta 12 cuotas)\n✅ Mercado Pago\n\n¿Necesitás más información?",
+    },
+  });
+
+  const infoOtra = await prisma.flowStep.create({
+    data: {
+      flowId: infoFlow.id,
+      code: "info_otra",
+      name: "Transferir por otra consulta",
+      order: 6,
+      stepType: "TEXT",
+      expectedInput: "NONE",
+      messageBody:
+        "Entendido, te voy a comunicar con uno de nuestros vendedores para que te ayude. En breve te contactamos. 🙌",
+      transferToAgent: true,
+    },
+  });
+
+  // Transiciones del flujo info
+  await prisma.flowStepTransition.createMany({
+    data: [
+      {
+        stepId: infoMenu.id,
+        condition: "info_horarios",
+        nextStepId: infoHorarios.id,
+        order: 1,
+      },
+      {
+        stepId: infoMenu.id,
+        condition: "info_ubicacion",
+        nextStepId: infoUbicacion.id,
+        order: 2,
+      },
+      {
+        stepId: infoMenu.id,
+        condition: "info_envios",
+        nextStepId: infoEnvios.id,
+        order: 3,
+      },
+      {
+        stepId: infoMenu.id,
+        condition: "info_pagos",
+        nextStepId: infoPagos.id,
+        order: 4,
+      },
+      {
+        stepId: infoMenu.id,
+        condition: "info_otra",
+        nextStepId: infoOtra.id,
+        order: 5,
+      },
+      // Después de mostrar info, volver al menú
+      {
+        stepId: infoHorarios.id,
+        condition: "*",
+        nextStepId: infoMenu.id,
+        order: 1,
+      },
+      {
+        stepId: infoUbicacion.id,
+        condition: "*",
+        nextStepId: infoMenu.id,
+        order: 1,
+      },
+      {
+        stepId: infoEnvios.id,
+        condition: "*",
+        nextStepId: infoMenu.id,
+        order: 1,
+      },
+      {
+        stepId: infoPagos.id,
+        condition: "*",
+        nextStepId: infoMenu.id,
+        order: 1,
+      },
+    ],
+  });
+
+  // Actualizar step inicial
+  await prisma.flowDefinition.update({
+    where: { id: infoFlow.id },
+    data: { initialStepId: infoMenu.id },
+  });
+
+  console.log("Created flow: info");
+
+  // 4. FLUJO: ONBOARDING (usuarios nuevos)
+  const onboardingFlow = await prisma.flowDefinition.create({
+    data: {
+      code: "onboarding",
+      name: "Bienvenida Nuevos Usuarios",
+      description:
+        "Flujo de bienvenida para usuarios que escriben por primera vez",
+      isActive: true,
+      isDefault: false,
+      timeoutMinutes: 30,
+    },
+  });
+
+  const askName = await prisma.flowStep.create({
+    data: {
+      flowId: onboardingFlow.id,
+      code: "ask_name",
+      name: "Pedir nombre",
+      order: 1,
+      stepType: "TEXT",
+      expectedInput: "TEXT",
+      messageBody:
+        "¡Hola! 👋 Bienvenido a *Reino Cerámicos*.\n\nSoy el asistente virtual y estoy acá para ayudarte.\n\n¿Cómo te llamás?",
+      validationRegex: "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s]{2,50}$",
+      errorMessage:
+        "Por favor, ingresá tu nombre (solo letras, entre 2 y 50 caracteres)",
+      saveResponseAs: "customerName",
+    },
+  });
+
+  const welcomeWithName = await prisma.flowStep.create({
+    data: {
+      flowId: onboardingFlow.id,
+      code: "welcome_with_name",
+      name: "Bienvenida personalizada",
+      order: 2,
+      stepType: "BUTTON",
+      expectedInput: "BUTTON_REPLY",
+      messageBody:
+        "¡Mucho gusto, {customerName}! 🙌\n\n¿En qué puedo ayudarte hoy?",
+      messageHeader: "Reino Cerámicos",
+      saveResponseAs: "menuSelection",
+    },
+  });
+
+  await prisma.flowStepOption.createMany({
+    data: [
+      {
+        stepId: welcomeWithName.id,
+        optionId: "menu_comprar",
+        title: "Quiero comprar",
+        order: 1,
+      },
+      {
+        stepId: welcomeWithName.id,
+        optionId: "menu_consultas",
+        title: "Tengo consultas",
+        order: 2,
+      },
+      {
+        stepId: welcomeWithName.id,
+        optionId: "menu_vendedor",
+        title: "Hablar con vendedor",
+        order: 3,
+      },
+    ],
+  });
+
+  await prisma.flowStepTransition.createMany({
+    data: [
+      {
+        stepId: welcomeWithName.id,
+        condition: "menu_comprar",
+        switchToFlow: "quotation",
+        order: 1,
+      },
+      {
+        stepId: welcomeWithName.id,
+        condition: "menu_consultas",
+        switchToFlow: "info",
+        order: 2,
+      },
+      {
+        stepId: welcomeWithName.id,
+        condition: "menu_vendedor",
+        nextStepId: null,
+        order: 3,
+      },
+    ],
+  });
+
+  await prisma.flowStep.update({
+    where: { id: askName.id },
+    data: { defaultNextStepId: welcomeWithName.id },
+  });
+
+  await prisma.flowDefinition.update({
+    where: { id: onboardingFlow.id },
+    data: { initialStepId: askName.id },
+  });
+
+  console.log("Created flow: onboarding");
+
+  console.log("\n✅ Created 4 example flows in database:");
+  console.log("   - main_menu (default)");
+  console.log("   - quotation");
+  console.log("   - info");
+  console.log("   - onboarding");
+
+  console.log("\nSeeding completed!");
 }
 
 main()

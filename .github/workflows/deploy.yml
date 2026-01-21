@@ -36,7 +36,7 @@ jobs:
         run: |
           ssh -p $SSH_PORT $SSH_USER@$SSH_HOST << 'EOF'
             set -e
-            cd /home/webapps/dev/chatbot-reino
+            cd /home/webapps/prod/chatbot-reino/backend
 
             echo "📥 Trayendo últimos cambios..."
             git pull origin dev
@@ -45,7 +45,7 @@ jobs:
             npm install
 
             echo "🚀 Reiniciando PM2..."
-            pm2 restart chatbot
+            pm2 api-reino-chatbot
 
             echo "✅ Deploy completado"
           EOF

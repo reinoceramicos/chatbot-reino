@@ -1,4 +1,4 @@
-name: Deploy dev al VPS
+name: Deploy Backend Dev al VPS
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy Chatbot FRONT a VPS
+    name: Deploy Chatbot BACKEND a VPS # <--- Corregido (antes decía FRONT)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -36,6 +36,7 @@ jobs:
         run: |
           ssh -p $SSH_PORT $SSH_USER@$SSH_HOST << 'EOF'
             set -e
+            # Navegar a la carpeta del backend
             cd /home/webapps/prod/chatbot-reino/backend
 
             echo "📥 Trayendo últimos cambios..."
@@ -43,9 +44,11 @@ jobs:
 
             echo "📦 Instalando dependencias..."
             npm install
+            # Opcional: Si quieres un entorno limpio usa: npm ci
 
             echo "🚀 Reiniciando PM2..."
-            pm2 api-reino-chatbot
+            # AQUÍ ESTABA EL ERROR: Faltaba la acción 'restart' o 'reload'
+            pm2 restart api-reino-chatbot --update-env
 
             echo "✅ Deploy completado"
           EOF

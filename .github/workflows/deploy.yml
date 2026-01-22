@@ -1,4 +1,4 @@
-name: Deploy dev al VPS
+name: Deploy Backend Dev al VPS
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy Chatbot FRONT a VPS
+    name: Deploy Chatbot BACKEND a VPS
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -36,6 +36,12 @@ jobs:
         run: |
           ssh -p $SSH_PORT $SSH_USER@$SSH_HOST << 'EOF'
             set -e
+
+            # Cargar NVM explícitamente para tener acceso a node y npm
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # Ir al directorio
             cd /home/webapps/prod/chatbot-reino/backend
 
             echo "📥 Trayendo últimos cambios..."
@@ -45,7 +51,7 @@ jobs:
             npm install
 
             echo "🚀 Reiniciando PM2..."
-            pm2 api-reino-chatbot
+            pm2 restart api-reino-chatbot --update-env
 
             echo "✅ Deploy completado"
           EOF

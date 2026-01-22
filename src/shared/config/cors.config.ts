@@ -14,7 +14,7 @@ export const corsConfig: CorsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin) || origin.includes("ngrok")) {
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
@@ -28,6 +28,5 @@ export const corsConfig: CorsOptions = {
     "Accept",
     "X-Requested-With",
     "Origin",
-    "ngrok-skip-browser-warning",
   ],
 };

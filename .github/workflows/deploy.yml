@@ -50,6 +50,14 @@ jobs:
             echo "📦 Instalando dependencias..."
             npm install
 
+            echo "🔨 Compilando aplicación..."
+            npm run build
+
+            echo "🚀 Reiniciando PM2..."
+            pm2 restart api-reino-chatbot --update-env
+
+
+
             echo "🚀 Reiniciando PM2..."
             pm2 restart api-reino-chatbot --update-env
 

@@ -9,6 +9,7 @@ import { flowRouter } from "./flows";
 import { envConfig } from "./shared/config/env.config";
 import { corsConfig } from "./shared/config/cors.config";
 import { SocketService } from "./shared/infrastructure/websocket/socket.service";
+import morgan from "morgan";
 
 const app = express();
 const httpServer = createServer(app);
@@ -19,12 +20,7 @@ export const socketService = new SocketService(httpServer);
 app.use(cors(corsConfig));
 app.use(express.json());
 
-app.use((req, _res, next) => {
-  if (req.path.startsWith("/webhook") || req.path.startsWith("/api/agents")) {
-    console.log("IN", req.method, req.originalUrl, req.headers["user-agent"]);
-  }
-  next();
-});
+app.use(morgan("dev"));
 
 app.use("/webhook", webhookRouter);
 app.use("/api/agents", agentRouter);
